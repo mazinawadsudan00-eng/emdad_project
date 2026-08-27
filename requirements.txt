@@ -1,7 +1,1 @@
-Django>=5.0,<5.2
-
-# لتشغيل المشروع على PostgreSQL (اختياري - عدّل DJANGO_DB_ENGINE في .env):
-# psycopg2-binary>=2.9
-
-# لتشغيل المشروع على MySQL (اختياري - عدّل DJANGO_DB_ENGINE في .env):
-# mysqlclient>=2.2
+gunicorn==26.2.0
