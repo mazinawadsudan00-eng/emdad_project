@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block page_title %}التقارير والتحليلات{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 fw-bold text-dark">التقارير والتحليلات</h1>
+        <p class="text-muted small mb-0">استعراض تفصيلي لعمليات البيع والشراء خلال فترة محددة.</p>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm p-3 mb-4 bg-white">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label small fw-bold text-secondary">من تاريخ</label>
+            <input type="date" name="start" value="{{ start|date:'Y-m-d' }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-bold text-secondary">إلى تاريخ</label>
+            <input type="date" name="end" value="{{ end|date:'Y-m-d' }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-filter-circle me-1"></i> تطبيق الفلتر</button>
+        </div>
+        <div class="col-md-3 text-md-end">
+            <a href="{% url 'export_sales_csv' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}" class="btn btn-outline-success">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> تصدير المبيعات CSV
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm p-3 bg-white text-center">
+            <span class="text-muted small fw-bold">إجمالي المبيعات خلال الفترة</span>
+            <h4 class="fw-bold text-success mt-1 mb-0">{{ total_sales|floatformat:0 }} <small class="fs-6 fw-normal">ج.س</small></h4>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm p-3 bg-white text-center">
+            <span class="text-muted small fw-bold">إجمالي المشتريات (الشحنات الواردة)</span>
+            <h4 class="fw-bold text-primary mt-1 mb-0">{{ total_purchases|floatformat:0 }} <small class="fs-6 fw-normal">ج.س</small></h4>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm bg-white p-3">
+            <h6 class="fw-bold mb-3"><i class="bi bi-cart3 text-success me-1"></i> فواتير المبيعات</h6>
+            <div class="table-responsive" style="max-height:420px; overflow-y:auto;">
+                <table class="table table-sm table-hover text-center align-middle">
+                    <thead class="table-light"><tr><th>الفاتورة</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th></tr></thead>
+                    <tbody>
+                        {% for s in sales %}
+                        <tr>
+                            <td class="fw-bold">{{ s.invoice_no }}</td>
+                            <td>{{ s.account.name|default:"عميل نقدي" }}</td>
+                            <td><small>{{ s.created_at|date:"Y-m-d H:i" }}</small></td>
+                            <td class="fw-bold">{{ s.total|floatformat:0 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-muted py-3">لا توجد فواتير ضمن هذه الفترة</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm bg-white p-3">
+            <h6 class="fw-bold mb-3"><i class="bi bi-truck text-primary me-1"></i> الشحنات الواردة (المشتريات)</h6>
+            <div class="table-responsive" style="max-height:420px; overflow-y:auto;">
+                <table class="table table-sm table-hover text-center align-middle">
+                    <thead class="table-light"><tr><th>الصنف</th><th>المورد</th><th>الكمية</th><th>التكلفة</th></tr></thead>
+                    <tbody>
+                        {% for p in purchases %}
+                        <tr>
+                            <td class="fw-bold">{{ p.product.code }}</td>
+                            <td>{{ p.supplier.name|default:"—" }}</td>
+                            <td>{{ p.quantity }}</td>
+                            <td class="fw-bold">{{ p.total_cost|floatformat:0 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-muted py-3">لا توجد شحنات ضمن هذه الفترة</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

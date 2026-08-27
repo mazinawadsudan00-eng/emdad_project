@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block page_title %}العملاء والموردين{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 fw-bold text-dark">دليل الحسابات (العملاء والموردين)</h1>
+        <p class="text-muted small mb-0">إدارة العقود، ومتابعة مديونيات الوكلاء ومستحقات شركات توريد الغاز.</p>
+    </div>
+    <div>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+            <i class="bi bi-person-plus-fill me-1"></i> إضافة حساب جديد
+        </button>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3 bg-white text-center">
+            <span class="text-muted small fw-bold">إجمالي ديون العملاء (لنا)</span>
+            <h4 class="fw-bold text-warning mt-1 mb-0">{{ customer_debt|floatformat:0 }} <small class="fs-6 fw-normal">ج.س</small></h4>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3 bg-white text-center">
+            <span class="text-muted small fw-bold">مستحقات الموردين (علينا)</span>
+            <h4 class="fw-bold text-danger mt-1 mb-0">{{ supplier_payable|floatformat:0 }} <small class="fs-6 fw-normal">ج.س</small></h4>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3 bg-white text-center">
+            <span class="text-muted small fw-bold">عدد العقود النشطة</span>
+            <h4 class="fw-bold text-success mt-1 mb-0">{{ active_contracts }} <small class="fs-6 fw-normal">عقد توزيع</small></h4>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm bg-white">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-light text-secondary">
+                    <tr>
+                        <th>الاسم / الشركة</th><th>التصنيف</th><th>رقم الهاتف</th><th>المدينة / المنطقة</th>
+                        <th>الرصيد المالي الحالي</th><th>حالة العقد</th><th>إجراءات الإدارة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for acc in accounts %}
+                    <tr>
+                        <td class="fw-bold text-dark">{{ acc.name }}</td>
+                        <td>
+                            {% if acc.account_type == 'supplier' %}
+                            <span class="badge bg-primary-subtle text-primary badge-type">مورد رئيسي</span>
+                            {% elif acc.account_type == 'agent' %}
+                            <span class="badge bg-info-subtle text-info badge-type">وكيل توزيع</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary badge-type">عميل تجاري</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ acc.phone|default:"—" }}</td>
+                        <td>{{ acc.region|default:"—" }}</td>
+                        <td class="fw-bold {% if acc.balance > 0 %}text-warning{% elif acc.balance < 0 %}text-danger{% else %}text-success{% endif %}">
+                            {% if acc.balance > 0 %}{{ acc.balance|floatformat:0 }}+{% elif acc.balance < 0 %}{{ acc.balance_abs|floatformat:0 }}-{% else %}0.00{% endif %} ج.س
+                        </td>
+                        <td>
+                            {% if acc.is_active %}<span class="badge bg-success-subtle text-success">نشط</span>
+                            {% else %}<span class="badge bg-danger-subtle text-danger">منتهي</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if acc.balance != 0 %}
+                                {% if request.user.is_superuser or request.user.is_staff or request.user.role == 'admin' or request.user.role == 'accountant' %}
+                                <button class="btn btn-sm btn-light {% if acc.balance > 0 %}text-success{% else %}text-primary{% endif %} fw-bold" type="button" data-bs-toggle="modal" data-bs-target="#settleModal{{ acc.pk }}">
+                                    {% if acc.balance > 0 %}تحصيل دين{% else %}دفع مستحقات{% endif %}
+                                </button>
+                                {% else %}
+                                <span class="text-muted small">بانتظار المحاسب</span>
+                                {% endif %}
+                            {% else %}
+                            <button class="btn btn-sm btn-light text-secondary fw-bold" disabled>خالص</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <div class="modal fade" id="settleModal{{ acc.pk }}" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered modal-sm">
+                            <div class="modal-content">
+                                <form method="post" action="{% url 'settle_account' acc.pk %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h6 class="modal-title fw-bold">تسوية حساب: {{ acc.name }}</h6>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-start">
+                                        <p class="small text-muted mb-2">الرصيد الحالي: {{ acc.balance|floatformat:2 }} ج.س</p>
+                                        <label class="form-label small fw-bold text-secondary">المبلغ</label>
+                                        <input type="number" step="0.01" min="0" name="amount" class="form-control" required>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                                        <button type="submit" class="btn btn-primary">تأكيد</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">لا توجد حسابات مسجلة بعد</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addContactModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-person-plus-fill me-2"></i> إنشاء ملف جهة اتصال جديدة</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-start">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">{{ form.name.label }}</label>
+                        {{ form.name }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">{{ form.account_type.label }}</label>
+                        {{ form.account_type }}
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">{{ form.phone.label }}</label>
+                            {{ form.phone }}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">{{ form.region.label }}</label>
+                            {{ form.region }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">{{ form.balance.label }}</label>
+                        {{ form.balance }}
+                        <div class="form-text text-muted fs-8">موجب = مستحق لنا، سالب = مستحق علينا. اتركه صفراً إذا لم توجد مستحقات سابقة.</div>
+                    </div>
+                    <div class="form-check mb-3">
+                        {{ form.is_active }}
+                        <label class="form-check-label small fw-bold text-secondary">{{ form.is_active.label }}</label>
+                    </div>
+                    <div class="text-end pt-2">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-primary fw-bold">حفظ جهة الاتصال</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

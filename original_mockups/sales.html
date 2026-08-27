@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة إمداد - المبيعات والفواتير</title>
+    <!-- Bootstrap 5 CSS الداعم للغة العربية -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <!-- أيقونات Bootstrap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+        }
+        /* تنسيق القائمة الجانبية المثبتة */
+        .sidebar {
+            min-height: 100vh;
+            background-color: #1e293b;
+            color: #cbd5e1;
+        }
+        .sidebar .nav-link {
+            color: #94a3b8;
+            padding: 12px 20px;
+            margin: 4px 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #0ea5e9;
+        }
+        .sidebar .nav-link i {
+            font-size: 1.2rem;
+            margin-left: 10px;
+        }
+        .invoice-badge {
+            font-size: 0.8rem;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        
+        <!-- القائمة الجانبية (Sidebar) -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse p-0 shadow-sm position-fixed">
+            <div class="p-3 text-center border-bottom border-secondary">
+                <h5 class="fw-bold text-info mb-0"><i class="bi bi-fuel-pump-fill"></i> منصة إمداد</h5>
+                <small class="text-muted">مجمع نابلس للغاز</small>
+            </div>
+            <div class="nav flex-column pt-3">
+                <a class="nav-link" href="dashboard.html"><i class="bi bi-speedometer2"></i> لوحة التحكم</a>
+                <a class="nav-link" href="inventory.html"><i class="bi bi-box-seam"></i> إدارة المخزون</a>
+                <a class="nav-link active" href="#"><i class="bi bi-cart3"></i> المبيعات والفواتير</a>
+                <a class="nav-link" href="#"><i class="bi bi-people"></i> العملاء والموردين</a>
+                <a class="nav-link" href="#"><i class="bi bi-graph-up-arrow"></i> التقارير والتحليلات</a>
+                <hr class="text-secondary my-2 mx-3">
+                <a class="nav-link text-danger" href="login.html"><i class="bi bi-box-arrow-right"></i> تسجيل الخروج</a>
+            </div>
+        </nav>
+
+        <!-- المحتوى الرئيسي (Main Content) -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-4" style="margin-right: auto; padding-right: 2rem;">
+            
+            <!-- الهيدر العلوي -->
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+                <div>
+                    <h1 class="h3 fw-bold text-dark">نظام المبيعات وإصدار الفواتير</h1>
+                    <p class="text-muted small mb-0">تسجيل عمليات البيع المباشر للموزعين والوكلاء وإدارة الديون اللحظية.</p>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <!-- قسم إنشاء فاتورة جديدة (يسار الشاشة) -->
+                <div class="col-lg-5">
+                    <div class="card border-0 shadow-sm bg-white p-4">
+                        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2"><i class="bi bi-plus-circle-fill text-primary me-1"></i> فاتورة بيع جديدة</h5>
+                        <form>
+                            <!-- اختيار العميل -->
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-secondary">الوكيل / العميل</label>
+                                <select class="form-select">
+                                    <option>موزع بحري المعتمد</option>
+                                    <option>شركة النيل للخدمات الغذائية</option>
+                                    <option>وكيل أمدرمان الرئيسي</option>
+                                    <option>عميل نقدي مباشر</option>
+                                </select>
+                            </div>
+
+                            <!-- اختيار نوع وحجم الأسطوانة -->
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-secondary">الصنف المراد بيعه</label>
+                                <select class="form-select" id="itemSelect">
+                                    <option data-price="2500">أسطوانة منزلية (12.5 كجم) - 2,500 ج.س</option>
+                                    <option data-price="5000">أسطوانة تجارية (25 كجم) - 5,000 ج.س</option>
+                                </select>
+                            </div>
+
+                            <!-- الكمية وطريقة السداد -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-secondary">الكمية (عدد الأسطوانات)</label>
+                                    <input type="number" class="form-control" id="itemQuantity" value="1" min="1">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-secondary">طريقة الدفع</label>
+                                    <select class="form-select">
+                                        <option>نقدي / كاش</option>
+                                        <option>تطبيق بنكك (تطبيق بنكي)</option>
+                                        <option>آجل / ديون مستحقة</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- المجموع الإجمالي التلقائي -->
+                            <div class="p-3 bg-light rounded-3 mb-4 text-center">
+                                <span class="text-muted small d-block">إجمالي القيمة المستحقة</span>
+                                <h3 class="fw-bold text-success m-0" id="totalPrice">2,500 <small class="fs-6 fw-normal text-muted">ج.س</small></h3>
+                            </div>
+
+                            <!-- زر تأكيد العملية -->
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-success btn-lg fw-bold fs-6 shadow-sm">
+                                    تأكيد وحفظ الفاتورة <i class="bi bi-printer ms-1"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- قسم سجل الفواتير الأخيرة (يمين الشاشة) -->
+                <div class="col-lg-7">
+                    <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                            <h5 class="fw-bold text-dark m-0"><i class="bi bi-journal-text text-primary me-1"></i> فواتير اليوم الأخيرة</h5>
+                            <span class="badge bg-primary-subtle text-primary">المجموع: 4 فواتير</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle text-center mb-0">
+                                <thead class="table-light text-secondary fs-7">
+                                    <tr>
+                                        <th>رقم الفاتورة</th>
+                                        <th>العميل</th>
+                                        <th>البيان</th>
+                                        <th>الإجمالي</th>
+                                        <th>حالة الدفع</th>
+                                        <th>الإجراء</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="fs-7">
+                                    <tr>
+                                        <td class="fw-bold">#INV-1002</td>
+                                        <td>وكيل أمدرمان الرئيسي</td>
+                                        <td>100 أسطوانة منزلية</td>
+                                        <td class="fw-bold text-dark">250,000 ج.س</td>
+                                        <td><span class="badge bg-success-subtle text-success invoice-badge">مدفوع</span></td>
+                                        <td><button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">#INV-1001</td>
+                                        <td>موزع بحري المعتمد</td>
+                                        <td>50 أسطوانة تجارية</td>
+                                        <td class="fw-bold text-dark">250,000 ج.س</td>
+                                        <td><span class="badge bg-warning-subtle text-warning invoice-badge">آجل (دين)</span></td>
+                                        <td><button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold">#INV-1000</td>
+                                        <td>شركة النيل للأغذية</td>
+                                        <td>20 أسطوانة منزلية</td>
+                                        <td class="fw-bold text-dark">50,000 ج.س</td>
+                                        <td><span class="badge bg-success-subtle text-success invoice-badge">مدفوع</span></td>
+                                        <td><button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<!-- كود جافا سكريبت لحساب الإجمالي فورياً وتفاعلياً -->
+<script>
+    const itemSelect = document.getElementById('itemSelect');
+    const itemQuantity = document.getElementById('itemQuantity');
+    const totalPrice = document.getElementById('totalPrice');
+
+    function calculateTotal() {
+        const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+        const price = parseInt(selectedOption.getAttribute('data-price'));
+        const quantity = parseInt(itemQuantity.value) || 1;
+        const total = price * quantity;
+        totalPrice.innerHTML = total.toLocaleString() + ' <small class="fs-6 fw-normal text-muted">ج.س</small>';
+    }
+
+    itemSelect.addEventListener('change', calculateTotal);
+    itemQuantity.addEventListener('input', calculateTotal);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

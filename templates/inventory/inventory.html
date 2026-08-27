@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block page_title %}إدارة المخزون{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 fw-bold text-dark">جرد وإدارة أسطوانات الغاز</h1>
+        <p class="text-muted small mb-0">مراقبة المخزون الحالي، التحديث، وإضافة مستودعات جديدة.</p>
+    </div>
+    {% if request.user.is_superuser or request.user.is_staff or request.user.role == 'admin' or request.user.role == 'warehouse' %}
+    <div>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStockModal">
+            <i class="bi bi-plus-lg me-1"></i> تسجيل شحنة/مخزون جديد
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm p-3 mb-4 bg-white">
+    <form method="get" class="row g-3">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="q" value="{{ q }}" class="form-control bg-light border-start-0" placeholder="ابحث برمز الصنف أو الاسم...">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="category" class="form-select bg-light" onchange="this.form.submit()">
+                <option value="">كل الأحجام (الفئات)</option>
+                {% for value, label in categories %}
+                <option value="{{ value }}" {% if selected_category == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="condition" class="form-select bg-light" onchange="this.form.submit()">
+                <option value="">الحالة التشغيلية</option>
+                {% for value, label in conditions %}
+                <option value="{{ value }}" {% if selected_condition == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+</div>
+
+<div class="card border-0 shadow-sm bg-white">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-light text-secondary">
+                    <tr>
+                        <th>رمز الصنف</th>
+                        <th>نوع وحجم الأسطوانة</th>
+                        <th>الكمية المتوفرة</th>
+                        <th>الحد الأدنى للمخزون</th>
+                        <th>حالة التوفر</th>
+                        <th>موقع التخزين</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    {% with status=item.status_label %}
+                    <tr>
+                        <td class="fw-bold">{{ item.product.code }}</td>
+                        <td>{{ item.product.name }} ({{ item.get_condition_display }})</td>
+                        <td class="fw-bold text-primary">{{ item.quantity }}</td>
+                        <td>{{ item.product.min_stock_level }}</td>
+                        <td><span class="badge bg-{{ status.1 }}-subtle text-{{ status.1 }} status-badge">{{ status.0 }}</span></td>
+                        <td>{{ item.location }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-secondary me-1" type="button" data-bs-toggle="modal" data-bs-target="#editModal{{ item.pk }}"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-warning me-1" type="button" data-bs-toggle="modal" data-bs-target="#maintModal{{ item.pk }}"><i class="bi bi-tools"></i></button>
+                            <form method="post" action="{% url 'delete_stock_item' item.pk %}" class="d-inline" onsubmit="return confirm('هل تريد حذف هذا السجل؟');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+
+                    <div class="modal fade" id="editModal{{ item.pk }}" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <form method="post" action="{% url 'edit_stock_item' item.pk %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h6 class="modal-title fw-bold">تعديل سجل: {{ item.product.code }}</h6>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-start">
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold text-secondary">الكمية المتوفرة</label>
+                                            <input type="number" min="0" name="quantity" value="{{ item.quantity }}" class="form-control" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold text-secondary">موقع التخزين</label>
+                                            <input type="text" name="location" value="{{ item.location }}" class="form-control" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold text-secondary">الحالة التشغيلية</label>
+                                            <select name="condition" class="form-select">
+                                                {% for value, label in conditions %}
+                                                <option value="{{ value }}" {% if item.condition == value %}selected{% endif %}>{{ label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                                        <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal fade" id="maintModal{{ item.pk }}" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <form method="post" action="{% url 'send_to_maintenance' item.pk %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h6 class="modal-title fw-bold">فرز للصيانة: {{ item.product.code }}</h6>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-start">
+                                        <p class="text-muted small">سيتم نقل الكمية المدخلة من هذا السجل إلى سجل "قيد الصيانة" لنفس الصنف.</p>
+                                        <label class="form-label small fw-bold text-secondary">الكمية</label>
+                                        <input type="number" min="1" max="{{ item.quantity }}" name="qty" class="form-control" required>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                                        <button type="submit" class="btn btn-warning">تأكيد النقل</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">لا توجد سجلات مخزون مطابقة</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addStockModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'add_stock' %}">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle-fill me-2"></i> تسجيل شحنة / مخزون جديد</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">{{ purchase_form.product.label }}</label>
+                        {{ purchase_form.product }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">{{ purchase_form.supplier.label }}</label>
+                        {{ purchase_form.supplier }}
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">{{ purchase_form.quantity.label }}</label>
+                            {{ purchase_form.quantity }}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">{{ purchase_form.unit_cost.label }}</label>
+                            {{ purchase_form.unit_cost }}
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">{{ purchase_form.condition.label }}</label>
+                            {{ purchase_form.condition }}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">{{ purchase_form.location.label }}</label>
+                            {{ purchase_form.location }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary fw-bold">حفظ الشحنة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

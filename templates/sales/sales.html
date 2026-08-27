@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block page_title %}المبيعات والفواتير{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 fw-bold text-dark">نظام المبيعات وإصدار الفواتير</h1>
+        <p class="text-muted small mb-0">تسجيل عمليات البيع المباشر للموزعين والوكلاء وإدارة الديون اللحظية.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm bg-white p-4">
+            <h5 class="fw-bold text-dark mb-3 border-bottom pb-2"><i class="bi bi-plus-circle-fill text-primary me-1"></i> فاتورة بيع جديدة</h5>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary">{{ form.account.label }}</label>
+                    {{ form.account }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary">الصنف المراد بيعه</label>
+                    <select class="form-select" id="itemSelect" name="product" required>
+                        {% for p in products %}
+                        <option value="{{ p.pk }}" data-price="{{ p.unit_price|floatformat:2 }}">{{ p.code }} - {{ p.name }} ({{ p.unit_price|floatformat:0 }} ج.س)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small fw-bold text-secondary">الكمية (عدد الأسطوانات)</label>
+                        <input type="number" class="form-control" id="itemQuantity" name="quantity" value="1" min="1">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-bold text-secondary">{{ form.payment_method.label }}</label>
+                        {{ form.payment_method }}
+                    </div>
+                </div>
+
+                <div class="p-3 bg-light rounded-3 mb-4 text-center">
+                    <span class="text-muted small d-block">إجمالي القيمة المستحقة</span>
+                    <h3 class="fw-bold text-success m-0" id="totalPrice">0 <small class="fs-6 fw-normal text-muted">ج.س</small></h3>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-success btn-lg fw-bold fs-6 shadow-sm">
+                        تأكيد وحفظ الفاتورة <i class="bi bi-printer ms-1"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm bg-white p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                <h5 class="fw-bold text-dark m-0"><i class="bi bi-journal-text text-primary me-1"></i> فواتير اليوم الأخيرة</h5>
+                <span class="badge bg-primary-subtle text-primary">المجموع: {{ recent_sales|length }} فواتير</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle text-center mb-0">
+                    <thead class="table-light text-secondary fs-7">
+                        <tr><th>رقم الفاتورة</th><th>العميل</th><th>البيان</th><th>الإجمالي</th><th>حالة الدفع</th></tr>
+                    </thead>
+                    <tbody class="fs-7">
+                        {% for sale in recent_sales %}
+                        {% with status=sale.status_label %}
+                        <tr>
+                            <td class="fw-bold">{{ sale.invoice_no }}</td>
+                            <td>{{ sale.account.name|default:"عميل نقدي" }}</td>
+                            <td>{% for item in sale.items.all %}{{ item.quantity }} × {{ item.product.name }}{% if not forloop.last %}، {% endif %}{% endfor %}</td>
+                            <td class="fw-bold text-dark">{{ sale.total|floatformat:0 }} ج.س</td>
+                            <td><span class="badge bg-{{ status.1 }}-subtle text-{{ status.1 }} invoice-badge">{{ status.0 }}</span></td>
+                        </tr>
+                        {% endwith %}
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">لا توجد فواتير مسجلة بعد</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const itemSelect = document.getElementById('itemSelect');
+    const itemQuantity = document.getElementById('itemQuantity');
+    const totalPrice = document.getElementById('totalPrice');
+
+    function calculateTotal() {
+        const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+        const price = parseFloat(selectedOption ? selectedOption.getAttribute('data-price') : 0) || 0;
+        const quantity = parseInt(itemQuantity.value) || 1;
+        const total = price * quantity;
+        totalPrice.innerHTML = total.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' <small class="fs-6 fw-normal text-muted">ج.س</small>';
+    }
+
+    if (itemSelect && itemQuantity) {
+        itemSelect.addEventListener('change', calculateTotal);
+        itemQuantity.addEventListener('input', calculateTotal);
+        calculateTotal();
+    }
+</script>
+{% endblock %}

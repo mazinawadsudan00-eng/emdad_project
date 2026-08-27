@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block page_title %}لوحة التحكم{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 fw-bold text-dark">نظام التحليل المرئي ودعم القرار</h1>
+        <p class="text-muted small mb-0">مرحباً {{ request.user.get_full_name|default:request.user.username }}، إليك نظرة عامة على عمليات المجمع اليوم.</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'reports_page' %}" class="btn btn-sm btn-outline-primary me-2"><i class="bi bi-printer"></i> التقارير التفصيلية</a>
+        <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle"></i> إضافة شحنة غاز</a>
+    </div>
+</div>
+
+{% if low_stock_items %}
+<div class="alert alert-warning d-flex align-items-start gap-2">
+    <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+    <div>
+        <strong>تنبيه انخفاض المخزون:</strong>
+        {% for it in low_stock_items %}
+            <span class="badge bg-white text-warning border border-warning me-1">{{ it.product.code }} ({{ it.quantity }})</span>
+        {% endfor %}
+        <a href="{% url 'inventory_list' %}" class="ms-2">مراجعة المخزون &raquo;</a>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-primary border-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted small fw-bold">أسطوانات جاهزة للبيع</span>
+                    <h3 class="fw-bold text-dark mt-1 mb-0">{{ ready_qty|intcomma }}</h3>
+                </div>
+                <div class="icon-box bg-primary bg-opacity-10 text-primary"><i class="bi bi-database-fill-check"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-warning border-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted small fw-bold">أسطوانات فارغة (بانتظار التعبئة)</span>
+                    <h3 class="fw-bold text-dark mt-1 mb-0">{{ empty_qty|intcomma }}</h3>
+                </div>
+                <div class="icon-box bg-warning bg-opacity-10 text-warning"><i class="bi bi-arrow-repeat"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-success border-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted small fw-bold">إيرادات مبيعات اليوم</span>
+                    <h3 class="fw-bold text-dark mt-1 mb-0">{{ today_revenue|floatformat:0|intcomma }} <span class="fs-6 fw-normal text-muted">ج.س</span></h3>
+                </div>
+                <div class="icon-box bg-success bg-opacity-10 text-success"><i class="bi bi-currency-exchange"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-danger border-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted small fw-bold">أسطوانات تالفة (تحتاج صيانة)</span>
+                    <h3 class="fw-bold text-danger mt-1 mb-0">{{ maintenance_qty|intcomma }}</h3>
+                </div>
+                <div class="icon-box bg-danger bg-opacity-10 text-danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm p-3 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-dark m-0"><i class="bi bi-graph-up text-primary me-1"></i> مراقبة معدل سحب المخزون الأسبوعي</h6>
+                <span class="badge bg-light text-dark border">آخر 6 أيام</span>
+            </div>
+            <div style="position: relative; height:300px;">
+                <canvas id="mainAnalyticsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm p-3 bg-white h-100">
+            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-activity text-success me-1"></i> آخر التحركات بالمجمع</h6>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light fs-7 text-secondary">
+                        <tr><th>البيان</th><th>الكمية</th><th>الوقت</th></tr>
+                    </thead>
+                    <tbody class="fs-7">
+                        {% for m in recent_movements %}
+                        <tr>
+                            <td>{{ m.get_movement_type_display }}{% if m.product %} - {{ m.product.code }}{% endif %}</td>
+                            <td><span class="text-{{ m.badge_class }} fw-bold">{{ m.quantity|floatformat:0 }}</span></td>
+                            <td><small class="text-muted">{{ m.created_at|timesince }} مضت</small></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">لا توجد حركات مسجلة بعد</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ chart_labels|json_script:"chart-labels" }}
+{{ chart_actual|json_script:"chart-actual" }}
+{{ chart_forecast|json_script:"chart-forecast" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const labels = JSON.parse(document.getElementById('chart-labels').textContent);
+    const actual = JSON.parse(document.getElementById('chart-actual').textContent);
+    const forecast = JSON.parse(document.getElementById('chart-forecast').textContent);
+    const ctx = document.getElementById('mainAnalyticsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'المبيعات الفعلية (أسطوانة)',
+                    data: actual,
+                    borderColor: '#0ea5e9',
+                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'الطلب المتوقع (متوسط أسي)',
+                    data: forecast,
+                    borderColor: '#94a3b8',
+                    borderDash: [5, 5],
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { font: { family: 'Segoe UI' } } } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+</script>
+{% endblock %}

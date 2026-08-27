@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة إمداد - العملاء والموردين</title>
+    <!-- Bootstrap 5 CSS الداعم للغة العربية -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <!-- أيقونات Bootstrap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+        }
+        /* القائمة الجانبية المثبتة */
+        .sidebar {
+            min-height: 100vh;
+            background-color: #1e293b;
+            color: #cbd5e1;
+        }
+        .sidebar .nav-link {
+            color: #94a3b8;
+            padding: 12px 20px;
+            margin: 4px 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #0ea5e9;
+        }
+        .sidebar .nav-link i {
+            font-size: 1.2rem;
+            margin-left: 10px;
+        }
+        .badge-type {
+            font-size: 0.8rem;
+            padding: 5px 12px;
+            border-radius: 30px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        
+        <!-- القائمة الجانبية (Sidebar) -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse p-0 shadow-sm position-fixed">
+            <div class="p-3 text-center border-bottom border-secondary">
+                <h5 class="fw-bold text-info mb-0"><i class="bi bi-fuel-pump-fill"></i> منصة إمداد</h5>
+                <small class="text-muted">مجمع نابلس للغاز</small>
+            </div>
+            <div class="nav flex-column pt-3">
+                <a class="nav-link" href="dashboard.html"><i class="bi bi-speedometer2"></i> لوحة التحكم</a>
+                <a class="nav-link" href="inventory.html"><i class="bi bi-box-seam"></i> إدارة المخزون</a>
+                <a class="nav-link" href="sales.html"><i class="bi bi-cart3"></i> المبيعات والفواتير</a>
+                <a class="nav-link active" href="#"><i class="bi bi-people"></i> العملاء والموردين</a>
+                <a class="nav-link" href="#"><i class="bi bi-graph-up-arrow"></i> التقارير والتحليلات</a>
+                <hr class="text-secondary my-2 mx-3">
+                <a class="nav-link text-danger" href="login.html"><i class="bi bi-box-arrow-right"></i> تسجيل الخروج</a>
+            </div>
+        </nav>
+
+        <!-- المحتوى الرئيسي (Main Content) -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-4" style="margin-right: auto; padding-right: 2rem;">
+            
+            <!-- الهيدر العلوي -->
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+                <div>
+                    <h1 class="h3 fw-bold text-dark">دليل الحسابات (العملاء والموردين)</h1>
+                    <p class="text-muted small mb-0">إدارة العقود، ومتابعة مديونيات الوكلاء ومستحقات شركات توريد الغاز.</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                        <i class="bi bi-person-plus-fill me-1"></i> إضافة حساب جديد
+                    </button>
+                </div>
+            </div>
+
+            <!-- بطاقات الفرز السريع للحسابات الماليّة -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm p-3 bg-white text-center">
+                        <span class="text-muted small fw-bold">إجمالي ديون العملاء (لنا)</span>
+                        <h4 class="fw-bold text-warning mt-1 mb-0">1,250,000 <small class="fs-6 fw-normal">ج.س</small></h4>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm p-3 bg-white text-center">
+                        <span class="text-muted small fw-bold">مستحقات الموردين (علبنا)</span>
+                        <h4 class="fw-bold text-danger mt-1 mb-0">3,400,000 <small class="fs-6 fw-normal">ج.س</small></h4>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm p-3 bg-white text-center">
+                        <span class="text-muted small fw-bold">عدد العقود النشطة</span>
+                        <h4 class="fw-bold text-success mt-1 mb-0">18 <small class="fs-6 fw-normal">عقد توزيع</small></h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- جدول جهات الاتصال والحسابات الماليّة -->
+            <div class="card border-0 shadow-sm bg-white">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="table-light text-secondary">
+                                <tr>
+                                    <th>الاسم / الشركة</th>
+                                    <th>التصنيف</th>
+                                    <th>رقم الهاتف</th>
+                                    <th>المدينة / المنطقة</th>
+                                    <th>الرصيد المالي الحالي</th>
+                                    <th>حالة العقد</th>
+                                    <th>إجراءات الإدارة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold text-dark">مصفاة الجيلي للبترول</td>
+                                    <td><span class="badge bg-purple-subtle text-primary bg-opacity-10 badge-type">مورد رئيسي</span></td>
+                                    <td>0123456789</td>
+                                    <td>الجيلي</td>
+                                    <td class="fw-bold text-danger">3,400,000- ج.س</td>
+                                    <td><span class="badge bg-success-subtle text-success">نشط</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-light text-primary fw-bold">دفع مستحقات</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-dark">موزع بحري المعتمد (أحمد علي)</td>
+                                    <td><span class="badge bg-info-subtle text-info bg-opacity-10 badge-type">وكيل توزيع</span></td>
+                                    <td>0912345678</td>
+                                    <td>الخرطوم بحري</td>
+                                    <td class="fw-bold text-warning">450,000+ ج.س</td>
+                                    <td><span class="badge bg-success-subtle text-success">نشط</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-light text-success fw-bold">تحصيل دين</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-dark">وكيل أمدرمان الرئيسي</td>
+                                    <td><span class="badge bg-info-subtle text-info bg-opacity-10 badge-type">وكيل توزيع</span></td>
+                                    <td>0922223344</td>
+                                    <td>أمدرمان</td>
+                                    <td class="fw-bold text-warning">800,000+ ج.س</td>
+                                    <td><span class="badge bg-success-subtle text-success">نشط</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-light text-success fw-bold">تحصيل دين</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-dark">شركة النيل للخدمات الغذائية</td>
+                                    <td><span class="badge bg-secondary-subtle text-secondary bg-opacity-10 badge-type">عميل تجاري</span></td>
+                                    <td>0111222333</td>
+                                    <td>الخرطوم (العمارات)</td>
+                                    <td class="fw-bold text-success">0.00 ج.س</td>
+                                    <td><span class="badge bg-danger-subtle text-danger">منتهي</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-light text-secondary fw-bold" disabled>خالص</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- النافذة المنبثقة لإضافة حساب جديد (Modal) -->
+            <div class="modal fade" id="addContactModal" tabindex="-1" aria-labelledby="addContactModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title fw-bold" id="addContactModalLabel"><i class="bi bi-person-plus-fill me-2"></i> إنشاء ملف جهة اتصال جديدة</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-secondary">الاسم الكامل / اسم المنشأة أو الشركة</label>
+                                    <input type="text" class="form-control" placeholder="مثال: شركة غاز النيلين" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-secondary">نوع الحساب (التصنيف)</label>
+                                    <select class="form-select">
+                                        <option>وكيل توزيع (موزع معتمد)</option>
+                                        <option>مورد رئيسي (غاز صب/أسطوانات)</option>
+                                        <option>عميل تجاري (مطاعم/فنادق)</option>
+                                    </select>
+                                </div>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-secondary">رقم الهاتف</label>
+                                        <input type="tel" class="form-control" placeholder="09xxxxxxx" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-secondary">المنطقة / الموقع</label>
+                                        <input type="text" class="form-control" placeholder="مثال: بحري - المظلات">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-secondary">الرصيد الافتتاحي (إن وُجد)</label>
+                                    <input type="number" class="form-control" placeholder="0.00">
+                                    <div class="form-text text-muted fs-8">اتركها صفراً إذا لم تكن هناك ديون أو مستحقات سابقة.</div>
+                                </div>
+                                <div class="text-end pt-2">
+                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                                    <button type="submit" class="btn btn-primary fw-bold">حفظ جهة الاتصال</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
