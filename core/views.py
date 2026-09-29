@@ -608,28 +608,34 @@ def send_to_maintenance(request, pk):
 
 @login_required
 def sales_page(request):
-
     if request.method == 'POST':
-
         form = SaleForm(request.POST)
 
         if form.is_valid():
 
-            product = form.cleaned_data[
-                'product'
-            ]
+            product = form.cleaned_data['product']
+            qty = form.cleaned_data['quantity']
+            account = form.cleaned_data.get('account')
+            new_customer_name = (
+                form.cleaned_data.get('new_customer_name') or ''
+            ).strip()
+            payment_method = form.cleaned_data['payment_method']
 
-            qty = form.cleaned_data[
-                'quantity'
-            ]
+            # ==========================================
+            # إنشاء العميل الجديد إذا لم يكن موجوداً
+            # ==========================================
 
-            account = form.cleaned_data[
-                'account'
-            ]
+            if not account and new_customer_name:
 
-            payment_method = form.cleaned_data[
-                'payment_method'
-            ]
+                account = Account.objects.create(
+                    name=new_customer_name,
+                    account_type=Account.AccountType.CUSTOMER,
+                    is_active=True,
+                )
+
+            # ==========================================
+            # التحقق من المخزون
+            # ==========================================
 
             available = product.total_available
 
@@ -637,18 +643,27 @@ def sales_page(request):
 
                 messages.error(
                     request,
-                    f'الكمية المطلوبة ({qty}) غير متوفرة في المخزون. المتاح حالياً: {available}.',
+                    f'الكمية المطلوبة ({qty}) غير متوفرة في المخزون. '
+                    f'المتاح حالياً: {available}.',
                 )
 
             else:
 
                 with transaction.atomic():
 
+                    # ==================================
+                    # إنشاء الفاتورة
+                    # ==================================
+
                     sale = Sale.objects.create(
                         account=account,
                         payment_method=payment_method,
                         created_by=request.user,
                     )
+
+                    # ==================================
+                    # إضافة بند الفاتورة
+                    # ==================================
 
                     SaleItem.objects.create(
                         sale=sale,
@@ -657,21 +672,19 @@ def sales_page(request):
                         unit_price=product.unit_price,
                     )
 
+                    # ==================================
+                    # خصم المخزون
+                    # ==================================
+
                     remaining = qty
 
-                    for stock_item in (
-                        StockItem.objects
-                        .filter(
-                            product=product,
-                            condition=(
-                                StockItem
-                                .Condition
-                                .FULL
-                            ),
-                            quantity__gt=0,
-                        )
-                        .order_by('-quantity')
-                    ):
+                    stock_items = StockItem.objects.filter(
+                        product=product,
+                        condition=StockItem.Condition.FULL,
+                        quantity__gt=0,
+                    ).order_by('-quantity')
+
+                    for stock_item in stock_items:
 
                         if remaining <= 0:
                             break
@@ -681,10 +694,7 @@ def sales_page(request):
                             remaining
                         )
 
-                        stock_item.quantity = (
-                            F('quantity') -
-                            deduct
-                        )
+                        stock_item.quantity = F('quantity') - deduct
 
                         stock_item.save(
                             update_fields=[
@@ -695,37 +705,38 @@ def sales_page(request):
 
                         remaining -= deduct
 
+                    # ==================================
+                    # تسجيل حركة المخزون
+                    # ==================================
+
+                    customer_display = (
+                        account.name
+                        if account
+                        else 'عميل نقدي'
+                    )
+
                     StockMovement.objects.create(
                         product=product,
-                        movement_type=(
-                            StockMovement
-                            .MovementType
-                            .OUT
-                        ),
+                        movement_type=StockMovement.MovementType.OUT,
                         quantity=-qty,
                         related_account=account,
-                        note=(
-                            f'توزيع/بيع لـ '
-                            f'({account.name if account else "عميل نقدي"})'
-                        ),
+                        note=f'توزيع/بيع لـ ({customer_display})',
                         created_by=request.user,
                     )
 
+                    # ==================================
+                    # تحديث رصيد العميل في حالة الآجل
+                    # ==================================
+
                     if (
                         account
-                        and payment_method ==
-                        Sale.PaymentMethod.CREDIT
+                        and payment_method == Sale.PaymentMethod.CREDIT
                     ):
 
-                        account.balance = (
-                            F('balance') +
-                            sale.total
-                        )
+                        account.balance = F('balance') + sale.total
 
                         account.save(
-                            update_fields=[
-                                'balance'
-                            ]
+                            update_fields=['balance']
                         )
 
                 messages.success(
@@ -733,20 +744,27 @@ def sales_page(request):
                     f'تم إصدار الفاتورة {sale.invoice_no} بنجاح.'
                 )
 
-                return redirect(
-                    'sales_page'
-                )
+                return redirect('sales_page')
+
+        else:
+
+            messages.error(
+                request,
+                'تعذر إصدار الفاتورة، يرجى مراجعة بيانات النموذج.'
+            )
 
     else:
 
         form = SaleForm()
 
+    # ==========================================
+    # الفواتير الأخيرة
+    # ==========================================
+
     recent_sales = (
         Sale.objects
         .select_related('account')
-        .prefetch_related(
-            'items__product'
-        )
+        .prefetch_related('items__product')
         .order_by('-created_at')[:15]
     )
 
@@ -758,7 +776,7 @@ def sales_page(request):
     context = {
         'form': form,
         'recent_sales': recent_sales,
-        'products': products
+        'products': products,
     }
 
     return render(
@@ -766,6 +784,7 @@ def sales_page(request):
         'sales/sales.html',
         context
     )
+
 
 
 # ============================================================

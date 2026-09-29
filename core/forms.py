@@ -100,24 +100,97 @@ class StockItemForm(forms.ModelForm):
 
 
 class SaleForm(forms.Form):
-    """نموذج فاتورة بيع جديدة - يطابق نموذج "فاتورة بيع جديدة" في sales.html الأصلي."""
+    """نموذج فاتورة بيع جديدة مع البحث عن العميل وإمكانية إنشاء عميل جديد."""
 
     account = forms.ModelChoiceField(
-        queryset=Account.objects.filter(is_active=True), required=False, label='الوكيل / العميل',
-        widget=forms.Select(attrs={'class': 'form-select'}),
+        queryset=Account.objects.filter(is_active=True),
+        required=False,
+        label='العميل',
+        widget=forms.Select(
+            attrs={
+                'class': 'form-select',
+                'id': 'accountSelect',
+            }
+        ),
     )
+
+    new_customer_name = forms.CharField(
+        required=False,
+        max_length=200,
+        label='اسم العميل الجديد',
+        widget=forms.TextInput(
+            attrs={
+                'class': 'form-control',
+                'id': 'newCustomerName',
+                'placeholder': 'اكتب اسم العميل الجديد',
+            }
+        ),
+    )
+
     product = forms.ModelChoiceField(
-        queryset=Product.objects.filter(is_active=True, is_sellable=True), label='الصنف المراد بيعه',
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'itemSelect'}),
+        queryset=Product.objects.filter(
+            is_active=True,
+            is_sellable=True
+        ),
+        label='الصنف المراد بيعه',
+        widget=forms.Select(
+            attrs={
+                'class': 'form-select',
+                'id': 'itemSelect',
+            }
+        ),
     )
+
     quantity = forms.IntegerField(
-        min_value=1, initial=1, label='الكمية (عدد الأسطوانات)',
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'id': 'itemQuantity'}),
+        min_value=1,
+        initial=1,
+        label='الكمية (عدد الأسطوانات)',
+        widget=forms.NumberInput(
+            attrs={
+                'class': 'form-control',
+                'id': 'itemQuantity',
+                'min': '1',
+            }
+        ),
     )
+
     payment_method = forms.ChoiceField(
-        choices=Sale.PaymentMethod.choices, label='طريقة الدفع',
-        widget=forms.Select(attrs={'class': 'form-select'}),
+        choices=Sale.PaymentMethod.choices,
+        label='طريقة الدفع',
+        widget=forms.Select(
+            attrs={
+                'class': 'form-select',
+            }
+        ),
     )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        account = cleaned_data.get('account')
+        new_customer_name = (
+            cleaned_data.get('new_customer_name') or ''
+        ).strip()
+
+        payment_method = cleaned_data.get('payment_method')
+
+        # إذا كتب المستخدم اسم عميل جديد فلا يسمح باختيار عميل موجود معه
+        if account and new_customer_name:
+            raise forms.ValidationError(
+                'اختر عميلاً موجوداً أو أضف عميلاً جديداً، وليس الاثنين معاً.'
+            )
+
+        # البيع الآجل يحتاج حساباً مسجلاً
+        if (
+            payment_method == Sale.PaymentMethod.CREDIT
+            and not account
+            and not new_customer_name
+        ):
+            raise forms.ValidationError(
+                'البيع الآجل يتطلب اختيار عميل أو إنشاء عميل جديد.'
+            )
+
+        return cleaned_data
 
 
 class SettleForm(forms.Form):

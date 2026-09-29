@@ -1,110 +1,917 @@
 {% extends "base.html" %}
+
 {% block page_title %}المبيعات والفواتير{% endblock %}
 
 {% block content %}
+
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+
     <div>
-        <h1 class="h3 fw-bold text-dark">نظام المبيعات وإصدار الفواتير</h1>
-        <p class="text-muted small mb-0">تسجيل عمليات البيع المباشر للموزعين والوكلاء وإدارة الديون اللحظية.</p>
+
+        <h1 class="h3 fw-bold text-dark">
+            نظام المبيعات وإصدار الفواتير
+        </h1>
+
+        <p class="text-muted small mb-0">
+            تسجيل عمليات البيع وإدارة العملاء والفواتير.
+        </p>
+
     </div>
+
 </div>
 
+
 <div class="row g-4">
+
+    <!-- ================================= -->
+    <!-- نموذج البيع -->
+    <!-- ================================= -->
+
     <div class="col-lg-5">
+
         <div class="card border-0 shadow-sm bg-white p-4">
-            <h5 class="fw-bold text-dark mb-3 border-bottom pb-2"><i class="bi bi-plus-circle-fill text-primary me-1"></i> فاتورة بيع جديدة</h5>
-            <form method="post">
+
+            <h5 class="fw-bold text-dark mb-3 border-bottom pb-2">
+
+                <i class="bi bi-plus-circle-fill text-primary me-1"></i>
+
+                فاتورة بيع جديدة
+
+            </h5>
+
+
+            <form method="post" id="saleForm">
+
                 {% csrf_token %}
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-secondary">{{ form.account.label }}</label>
-                    {{ form.account }}
+
+
+                <!-- ================================= -->
+                <!-- البحث عن العميل -->
+                <!-- ================================= -->
+
+                <div class="mb-4 position-relative">
+
+                    <label class="form-label small fw-bold text-secondary">
+
+                        العميل
+
+                    </label>
+
+
+                    <!-- حقل البحث -->
+
+                    <div class="input-group">
+
+                        <span class="input-group-text bg-white">
+
+                            <i class="bi bi-search"></i>
+
+                        </span>
+
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="customerSearch"
+                            placeholder="ابحث عن اسم العميل..."
+                            autocomplete="off"
+                            autofocus
+                        >
+
+                    </div>
+
+
+                    <!-- القائمة المخفية في البداية -->
+
+                    <div
+                        id="customerDropdown"
+                        class="list-group position-absolute w-100 shadow-sm"
+                        style="
+                            z-index: 1050;
+                            display: none;
+                            max-height: 250px;
+                            overflow-y: auto;
+                        "
+                    >
+
+                        {% for account in form.account.field.queryset %}
+
+                        <button
+                            type="button"
+                            class="list-group-item list-group-item-action customer-option"
+                            data-id="{{ account.pk }}"
+                            data-name="{{ account.name }}"
+                        >
+
+                            <div class="d-flex justify-content-between align-items-center">
+
+                                <span>
+
+                                    <i class="bi bi-person text-primary me-1"></i>
+
+                                    {{ account.name }}
+
+                                </span>
+
+                                <small class="text-muted">
+
+                                    {{ account.get_account_type_display }}
+
+                                </small>
+
+                            </div>
+
+                        </button>
+
+                        {% endfor %}
+
+
+                        <!-- إضافة عميل -->
+
+                        <button
+                            type="button"
+                            id="newCustomerOption"
+                            class="list-group-item list-group-item-action text-success fw-bold"
+                        >
+
+                            <i class="bi bi-person-plus-fill me-1"></i>
+
+                            إضافة عميل جديد
+
+                        </button>
+
+
+                        <!-- عميل نقدي -->
+
+                        <button
+                            type="button"
+                            id="cashCustomerOption"
+                            class="list-group-item list-group-item-action text-secondary"
+                        >
+
+                            <i class="bi bi-cash-stack me-1"></i>
+
+                            عميل نقدي بدون تسجيل اسم
+
+                        </button>
+
+                    </div>
+
+
+                    <!-- ================================= -->
+                    <!-- العميل المختار -->
+                    <!-- ================================= -->
+
+                    <div
+                        id="selectedCustomer"
+                        class="mt-2"
+                        style="display:none;"
+                    >
+
+                        <div class="alert alert-primary py-2 mb-0 d-flex justify-content-between align-items-center">
+
+                            <div>
+
+                                <i class="bi bi-person-check-fill me-1"></i>
+
+                                <strong id="selectedCustomerName"></strong>
+
+                            </div>
+
+
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                id="clearCustomer"
+                            >
+
+                                تغيير
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================= -->
+                    <!-- اسم العميل الجديد -->
+                    <!-- ================================= -->
+
+                    <div
+                        id="newCustomerBox"
+                        class="mt-3"
+                        style="display:none;"
+                    >
+
+                        <label class="form-label small fw-bold text-success">
+
+                            اسم العميل الجديد
+
+                        </label>
+
+
+                        <input
+                            type="text"
+                            name="new_customer_name"
+                            id="newCustomerName"
+                            class="form-control"
+                            placeholder="اكتب اسم العميل الجديد"
+                            autocomplete="off"
+                        >
+
+
+                        <div class="form-text">
+
+                            سيتم إضافة العميل تلقائياً إلى دليل العملاء.
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- حقل Account الحقيقي الذي يرسل إلى Django -->
+
+                    <div style="display:none;">
+
+                        {{ form.account }}
+
+                    </div>
+
                 </div>
 
+
+                <!-- ================================= -->
+                <!-- الصنف -->
+                <!-- ================================= -->
+
                 <div class="mb-3">
-                    <label class="form-label small fw-bold text-secondary">الصنف المراد بيعه</label>
-                    <select class="form-select" id="itemSelect" name="product" required>
+
+                    <label class="form-label small fw-bold text-secondary">
+
+                        الصنف المراد بيعه
+
+                    </label>
+
+
+                    <select
+                        class="form-select"
+                        id="itemSelect"
+                        name="product"
+                        required
+                    >
+
                         {% for p in products %}
-                        <option value="{{ p.pk }}" data-price="{{ p.unit_price|floatformat:2 }}">{{ p.code }} - {{ p.name }} ({{ p.unit_price|floatformat:0 }} ج.س)</option>
+
+                        <option
+                            value="{{ p.pk }}"
+                            data-price="{{ p.unit_price|floatformat:2 }}"
+                        >
+
+                            {{ p.code }} -
+                            {{ p.name }}
+
+                            ({{ p.unit_price|floatformat:0 }} ج.س)
+
+                        </option>
+
                         {% endfor %}
+
                     </select>
+
                 </div>
+
+
+                <!-- ================================= -->
+                <!-- الكمية والدفع -->
+                <!-- ================================= -->
 
                 <div class="row g-3 mb-3">
+
                     <div class="col-6">
-                        <label class="form-label small fw-bold text-secondary">الكمية (عدد الأسطوانات)</label>
-                        <input type="number" class="form-control" id="itemQuantity" name="quantity" value="1" min="1">
+
+                        <label class="form-label small fw-bold text-secondary">
+
+                            الكمية
+
+                        </label>
+
+
+                        <input
+                            type="number"
+                            class="form-control"
+                            id="itemQuantity"
+                            name="quantity"
+                            value="1"
+                            min="1"
+                            required
+                        >
+
                     </div>
+
+
                     <div class="col-6">
-                        <label class="form-label small fw-bold text-secondary">{{ form.payment_method.label }}</label>
+
+                        <label class="form-label small fw-bold text-secondary">
+
+                            {{ form.payment_method.label }}
+
+                        </label>
+
+
                         {{ form.payment_method }}
+
                     </div>
+
                 </div>
+
+
+                <!-- ================================= -->
+                <!-- الإجمالي -->
+                <!-- ================================= -->
 
                 <div class="p-3 bg-light rounded-3 mb-4 text-center">
-                    <span class="text-muted small d-block">إجمالي القيمة المستحقة</span>
-                    <h3 class="fw-bold text-success m-0" id="totalPrice">0 <small class="fs-6 fw-normal text-muted">ج.س</small></h3>
+
+                    <span class="text-muted small d-block">
+
+                        إجمالي القيمة المستحقة
+
+                    </span>
+
+
+                    <h3
+                        class="fw-bold text-success m-0"
+                        id="totalPrice"
+                    >
+
+                        0
+
+                        <small class="fs-6 fw-normal text-muted">
+
+                            ج.س
+
+                        </small>
+
+                    </h3>
+
                 </div>
+
+
+                <!-- ================================= -->
+                <!-- زر الحفظ -->
+                <!-- ================================= -->
 
                 <div class="d-grid">
-                    <button type="submit" class="btn btn-success btn-lg fw-bold fs-6 shadow-sm">
-                        تأكيد وحفظ الفاتورة <i class="bi bi-printer ms-1"></i>
+
+                    <button
+                        type="submit"
+                        class="btn btn-success btn-lg fw-bold shadow-sm"
+                    >
+
+                        تأكيد وحفظ الفاتورة
+
+                        <i class="bi bi-check-circle ms-1"></i>
+
                     </button>
+
                 </div>
+
             </form>
+
         </div>
+
     </div>
 
+
+    <!-- ================================= -->
+    <!-- الفواتير الأخيرة -->
+    <!-- ================================= -->
+
     <div class="col-lg-7">
+
         <div class="card border-0 shadow-sm bg-white p-3 h-100">
+
             <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                <h5 class="fw-bold text-dark m-0"><i class="bi bi-journal-text text-primary me-1"></i> فواتير اليوم الأخيرة</h5>
-                <span class="badge bg-primary-subtle text-primary">المجموع: {{ recent_sales|length }} فواتير</span>
+
+                <h5 class="fw-bold text-dark m-0">
+
+                    <i class="bi bi-journal-text text-primary me-1"></i>
+
+                    فواتير اليوم الأخيرة
+
+                </h5>
+
+
+                <span class="badge bg-primary-subtle text-primary">
+
+                    المجموع:
+                    {{ recent_sales|length }}
+                    فواتير
+
+                </span>
+
             </div>
+
+
             <div class="table-responsive">
+
                 <table class="table table-hover align-middle text-center mb-0">
-                    <thead class="table-light text-secondary fs-7">
-                        <tr><th>رقم الفاتورة</th><th>العميل</th><th>البيان</th><th>الإجمالي</th><th>حالة الدفع</th></tr>
-                    </thead>
-                    <tbody class="fs-7">
-                        {% for sale in recent_sales %}
-                        {% with status=sale.status_label %}
+
+                    <thead class="table-light">
+
                         <tr>
-                            <td class="fw-bold">{{ sale.invoice_no }}</td>
-                            <td>{{ sale.account.name|default:"عميل نقدي" }}</td>
-                            <td>{% for item in sale.items.all %}{{ item.quantity }} × {{ item.product.name }}{% if not forloop.last %}، {% endif %}{% endfor %}</td>
-                            <td class="fw-bold text-dark">{{ sale.total|floatformat:0 }} ج.س</td>
-                            <td><span class="badge bg-{{ status.1 }}-subtle text-{{ status.1 }} invoice-badge">{{ status.0 }}</span></td>
+
+                            <th>رقم الفاتورة</th>
+
+                            <th>العميل</th>
+
+                            <th>البيان</th>
+
+                            <th>الإجمالي</th>
+
+                            <th>حالة الدفع</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {% for sale in recent_sales %}
+
+                        {% with status=sale.status_label %}
+
+                        <tr>
+
+                            <td class="fw-bold">
+
+                                {{ sale.invoice_no }}
+
+                            </td>
+
+
+                            <td>
+
+                                {% if sale.account %}
+
+                                    {{ sale.account.name }}
+
+                                {% else %}
+
+                                    عميل نقدي
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <td>
+
+                                {% for item in sale.items.all %}
+
+                                    {{ item.quantity }}
+                                    ×
+                                    {{ item.product.name }}
+
+                                    {% if not forloop.last %}
+                                        ،
+                                    {% endif %}
+
+                                {% endfor %}
+
+                            </td>
+
+
+                            <td class="fw-bold">
+
+                                {{ sale.total|floatformat:0 }}
+                                ج.س
+
+                            </td>
+
+
+                            <td>
+
+                                <span
+                                    class="badge bg-{{ status.1 }}-subtle text-{{ status.1 }}"
+                                >
+
+                                    {{ status.0 }}
+
+                                </span>
+
+                            </td>
+
                         </tr>
                         {% endwith %}
                         {% empty %}
-                        <tr><td colspan="5" class="text-center text-muted py-4">لا توجد فواتير مسجلة بعد</td></tr>
+
+                        <tr>
+
+                            <td
+                                colspan="5"
+                                class="text-muted py-4"
+                            >
+
+                                لا توجد فواتير مسجلة بعد
+
+                            </td>
+
+                        </tr>
+
                         {% endfor %}
+
                     </tbody>
+
                 </table>
+
             </div>
+
         </div>
+
     </div>
+
 </div>
+
 {% endblock %}
 
+
 {% block extra_js %}
+
 <script>
-    const itemSelect = document.getElementById('itemSelect');
-    const itemQuantity = document.getElementById('itemQuantity');
-    const totalPrice = document.getElementById('totalPrice');
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ============================================
+    // عناصر العميل
+    // ============================================
+
+    const customerSearch =
+        document.getElementById('customerSearch');
+
+    const customerDropdown =
+        document.getElementById('customerDropdown');
+
+    const accountSelect =
+        document.getElementById('accountSelect');
+
+    const selectedCustomer =
+        document.getElementById('selectedCustomer');
+
+    const selectedCustomerName =
+        document.getElementById('selectedCustomerName');
+
+    const newCustomerBox =
+        document.getElementById('newCustomerBox');
+
+    const newCustomerName =
+        document.getElementById('newCustomerName');
+
+    const newCustomerOption =
+        document.getElementById('newCustomerOption');
+
+    const cashCustomerOption =
+        document.getElementById('cashCustomerOption');
+
+    const clearCustomer =
+        document.getElementById('clearCustomer');
+
+    const customerOptions =
+        document.querySelectorAll('.customer-option');
+
+
+    // ============================================
+    // فتح قائمة العملاء
+    // ============================================
+
+    function openCustomerDropdown() {
+
+        customerDropdown.style.display = 'block';
+
+    }
+
+
+    // ============================================
+    // إغلاق القائمة
+    // ============================================
+
+    function closeCustomerDropdown() {
+
+        customerDropdown.style.display = 'none';
+
+    }
+
+
+    // ============================================
+    // اختيار عميل موجود
+    // ============================================
+
+    customerOptions.forEach(function (option) {
+
+        option.addEventListener('click', function () {
+
+            const id =
+                this.dataset.id;
+
+            const name =
+                this.dataset.name;
+
+
+            accountSelect.value = id;
+
+            customerSearch.value = name;
+
+            selectedCustomerName.textContent = name;
+
+            selectedCustomer.style.display = 'block';
+
+            newCustomerBox.style.display = 'none';
+
+            newCustomerName.value = '';
+
+            closeCustomerDropdown();
+
+        });
+
+    });
+
+
+    // ============================================
+    // البحث في العملاء
+    // ============================================
+
+    customerSearch.addEventListener(
+        'input',
+        function () {
+
+            const search =
+                this.value.trim().toLowerCase();
+
+            openCustomerDropdown();
+
+
+            let visibleCount = 0;
+
+
+            customerOptions.forEach(function (option) {
+
+                const name =
+                    option.dataset.name.toLowerCase();
+
+
+                if (
+                    search === '' ||
+                    name.includes(search)
+                ) {
+
+                    option.style.display = '';
+
+                    visibleCount++;
+
+                } else {
+
+                    option.style.display = 'none';
+
+                }
+
+            });
+
+
+            /*
+             * إذا لم نجد عميلاً مطابقاً
+             * نظل نظهر خيار إضافة عميل جديد
+             */
+
+            if (search !== '') {
+
+                newCustomerOption.innerHTML =
+                    '<i class="bi bi-person-plus-fill me-1"></i>' +
+                    'إضافة "' +
+                    this.value +
+                    '" كعميل جديد';
+
+            } else {
+
+                newCustomerOption.innerHTML =
+                    '<i class="bi bi-person-plus-fill me-1"></i>' +
+                    'إضافة عميل جديد';
+
+            }
+
+        }
+    );
+
+
+    // ============================================
+    // التركيز على الحقل
+    // ============================================
+
+    customerSearch.addEventListener(
+        'focus',
+        function () {
+
+            openCustomerDropdown();
+
+        }
+    );
+
+
+    // ============================================
+    // إضافة عميل جديد
+    // ============================================
+
+    newCustomerOption.addEventListener(
+        'click',
+        function () {
+
+            const name =
+                customerSearch.value.trim();
+
+
+            if (!name) {
+
+                customerSearch.focus();
+
+                return;
+
+            }
+
+
+            accountSelect.value = '';
+
+            selectedCustomer.style.display = 'none';
+
+            newCustomerBox.style.display = 'block';
+
+            newCustomerName.value = name;
+
+            closeCustomerDropdown();
+
+            newCustomerName.focus();
+
+        }
+    );
+
+
+    // ============================================
+    // عميل نقدي
+    // ============================================
+
+    cashCustomerOption.addEventListener(
+        'click',
+        function () {
+
+            accountSelect.value = '';
+
+            customerSearch.value = 'عميل نقدي';
+
+            selectedCustomerName.textContent =
+                'عميل نقدي';
+
+            selectedCustomer.style.display =
+                'block';
+
+            newCustomerBox.style.display =
+                'none';
+
+            newCustomerName.value = '';
+
+            closeCustomerDropdown();
+
+        }
+    );
+
+
+    // ============================================
+    // تغيير العميل
+    // ============================================
+
+    clearCustomer.addEventListener(
+        'click',
+        function () {
+
+            accountSelect.value = '';
+
+            customerSearch.value = '';
+
+            selectedCustomer.style.display =
+                'none';
+
+            newCustomerBox.style.display =
+                'none';
+
+            newCustomerName.value = '';
+
+            customerSearch.disabled = false;
+
+            customerSearch.focus();
+
+            openCustomerDropdown();
+
+        }
+    );
+
+
+    // ============================================
+    // إغلاق القائمة عند الضغط خارجها
+    // ============================================
+
+    document.addEventListener(
+        'click',
+        function (event) {
+
+            if (
+                !event.target.closest('#customerSearch') &&
+                !event.target.closest('#customerDropdown')
+            ) {
+
+                closeCustomerDropdown();
+
+            }
+
+        }
+    );
+
+
+    // ============================================
+    // حساب الإجمالي
+    // ============================================
+
+    const itemSelect =
+        document.getElementById('itemSelect');
+
+    const itemQuantity =
+        document.getElementById('itemQuantity');
+
+    const totalPrice =
+        document.getElementById('totalPrice');
+
 
     function calculateTotal() {
-        const selectedOption = itemSelect.options[itemSelect.selectedIndex];
-        const price = parseFloat(selectedOption ? selectedOption.getAttribute('data-price') : 0) || 0;
-        const quantity = parseInt(itemQuantity.value) || 1;
-        const total = price * quantity;
-        totalPrice.innerHTML = total.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' <small class="fs-6 fw-normal text-muted">ج.س</small>';
+
+        const selectedOption =
+            itemSelect.options[
+                itemSelect.selectedIndex
+            ];
+
+
+        const price =
+            parseFloat(
+                selectedOption
+                ? selectedOption.getAttribute('data-price')
+                : 0
+            ) || 0;
+
+
+        const quantity =
+            parseInt(
+                itemQuantity.value
+            ) || 1;
+
+
+        const total =
+            price * quantity;
+
+
+        totalPrice.innerHTML =
+            total.toLocaleString(
+                'ar-EG',
+                {
+                    maximumFractionDigits: 0
+                }
+            )
+            +
+            ' <small class="fs-6 fw-normal text-muted">ج.س</small>';
+
     }
 
-    if (itemSelect && itemQuantity) {
-        itemSelect.addEventListener('change', calculateTotal);
-        itemQuantity.addEventListener('input', calculateTotal);
-        calculateTotal();
-    }
+
+    itemSelect.addEventListener(
+        'change',
+        calculateTotal
+    );
+
+
+    itemQuantity.addEventListener(
+        'input',
+        calculateTotal
+    );
+
+
+    calculateTotal();
+
+
+    // ============================================
+    // وضع المؤشر مباشرة داخل البحث
+    // ============================================
+
+    customerSearch.focus();
+
+    openCustomerDropdown();
+
+});
+
 </script>
+
 {% endblock %}
