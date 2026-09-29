@@ -17,5 +17,5 @@ urlpatterns = [
     path('customers/<int:pk>/settle/', views.settle_account, name='settle_account'),
 
     path('reports/', views.reports_page, name='reports_page'),
-    path('reports/export/', views.export_sales_csv, name='export_sales_csv'),
+    path('reports/export/', views.export_sales_pdf, name='export_sales_pdf'),
 ]
