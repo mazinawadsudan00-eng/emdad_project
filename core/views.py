@@ -704,7 +704,25 @@ def sales_page(request):
                         )
 
                         remaining -= deduct
+                # ==================================
+                # استلام الأسطوانات الفارغة من العميل
+                # ==================================
 
+                        empty_stock, _ = StockItem.objects.get_or_create(
+                            product=product,
+                            condition=StockItem.Condition.EMPTY,
+                            location='المستودع الرئيسي (أ)',
+                            defaults={'quantity': 0},
+                        )
+
+                        empty_stock.quantity = F('quantity') + qty
+
+                        empty_stock.save(
+                            update_fields=[
+                                'quantity',
+                                'updated_at'
+                                        ]
+                                        )
                     # ==================================
                     # تسجيل حركة المخزون
                     # ==================================
