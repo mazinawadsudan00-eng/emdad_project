@@ -1,0 +1,1 @@
+import os, django; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'emdad.settings'); django.setup(); from django.core.management import call_command; f=open('datadump.json', 'w', encoding='utf-8'); call_command('dumpdata', natural_foreign=True, natural_primary=True, exclude=['contenttypes', 'auth.permission'], stdout=f); f.close(); print('SUCCESS') 
