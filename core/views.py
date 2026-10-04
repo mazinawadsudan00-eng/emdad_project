@@ -204,13 +204,58 @@ def dashboard(request):
         t=Sum('quantity')
     )['t'] or 0
 
+    # ============================================================
+    # تجميع الكميات حسب نوع/اسم المنتج لكل حالة أسطوانات
+    # ============================================================
+
+    ready_by_product = (
+        StockItem.objects.filter(condition=StockItem.Condition.FULL)
+        .values('product__name')
+        .annotate(total=Sum('quantity'))
+        .order_by('-total')
+    )
+
+    empty_by_product = (
+        StockItem.objects.filter(condition=StockItem.Condition.EMPTY)
+        .values('product__name')
+        .annotate(total=Sum('quantity'))
+        .order_by('-total')
+    )
+
+    maintenance_by_product = (
+        StockItem.objects.filter(condition=StockItem.Condition.MAINTENANCE)
+        .values('product__name')
+        .annotate(total=Sum('quantity'))
+        .order_by('-total')
+    )
+
     today = timezone.localdate()
 
+    # 1. إيرادات اليوم
     today_revenue = SaleItem.objects.filter(
         sale__created_at__date=today
     ).aggregate(
         t=Sum(F('quantity') * F('unit_price'))
     )['t'] or Decimal('0')
+
+    # 2. تكلفة مبيعات اليوم (لحساب صافي الربح)
+    today_items = SaleItem.objects.filter(sale__created_at__date=today)
+    today_cost = Decimal('0')
+
+    for item in today_items:
+        cost = getattr(item.product, 'cost_price', None)
+        if cost is None:
+
+            last_purchase = Purchase.objects.filter(
+                product=item.product
+            ).order_by('-received_at').first()
+
+            cost = last_purchase.unit_cost if last_purchase else Decimal('0')
+
+        today_cost += item.quantity * cost
+
+    # 3. صافي ربح اليوم
+    net_profit = today_revenue - today_cost
 
     start_day = today - datetime.timedelta(days=5)
 
@@ -278,6 +323,10 @@ def dashboard(request):
         'empty_qty': empty_qty,
         'maintenance_qty': maintenance_qty,
         'today_revenue': today_revenue,
+        'net_profit': net_profit,
+        'ready_by_product': ready_by_product,
+        'empty_by_product': empty_by_product,
+        'maintenance_by_product': maintenance_by_product,
         'chart_labels': labels,
         'chart_actual': actual,
         'chart_forecast': forecast,
@@ -621,10 +670,6 @@ def sales_page(request):
             ).strip()
             payment_method = form.cleaned_data['payment_method']
 
-            # ==========================================
-            # إنشاء العميل الجديد إذا لم يكن موجوداً
-            # ==========================================
-
             if not account and new_customer_name:
 
                 account = Account.objects.create(
@@ -632,10 +677,6 @@ def sales_page(request):
                     account_type=Account.AccountType.CUSTOMER,
                     is_active=True,
                 )
-
-            # ==========================================
-            # التحقق من المخزون
-            # ==========================================
 
             available = product.total_available
 
@@ -651,19 +692,11 @@ def sales_page(request):
 
                 with transaction.atomic():
 
-                    # ==================================
-                    # إنشاء الفاتورة
-                    # ==================================
-
                     sale = Sale.objects.create(
                         account=account,
                         payment_method=payment_method,
                         created_by=request.user,
                     )
-
-                    # ==================================
-                    # إضافة بند الفاتورة
-                    # ==================================
 
                     SaleItem.objects.create(
                         sale=sale,
@@ -671,10 +704,6 @@ def sales_page(request):
                         quantity=qty,
                         unit_price=product.unit_price,
                     )
-
-                    # ==================================
-                    # خصم المخزون
-                    # ==================================
 
                     remaining = qty
 
@@ -704,9 +733,6 @@ def sales_page(request):
                         )
 
                         remaining -= deduct
-                # ==================================
-                # استلام الأسطوانات الفارغة من العميل
-                # ==================================
 
                         empty_stock, _ = StockItem.objects.get_or_create(
                             product=product,
@@ -721,11 +747,8 @@ def sales_page(request):
                             update_fields=[
                                 'quantity',
                                 'updated_at'
-                                        ]
-                                        )
-                    # ==================================
-                    # تسجيل حركة المخزون
-                    # ==================================
+                            ]
+                        )
 
                     customer_display = (
                         account.name
@@ -741,10 +764,6 @@ def sales_page(request):
                         note=f'توزيع/بيع لـ ({customer_display})',
                         created_by=request.user,
                     )
-
-                    # ==================================
-                    # تحديث رصيد العميل في حالة الآجل
-                    # ==================================
 
                     if (
                         account
@@ -775,10 +794,6 @@ def sales_page(request):
 
         form = SaleForm()
 
-    # ==========================================
-    # الفواتير الأخيرة
-    # ==========================================
-
     recent_sales = (
         Sale.objects
         .select_related('account')
@@ -802,7 +817,6 @@ def sales_page(request):
         'sales/sales.html',
         context
     )
-
 
 
 # ============================================================
@@ -998,7 +1012,6 @@ def _parse_report_range(request):
 
         end = today
 
-    # في حالة إدخال الفترة بالعكس
     if start > end:
         start, end = end, start
 
@@ -1091,10 +1104,6 @@ def _get_report_data(start, end):
         0
     )
 
-    # --------------------------------------------------------
-    # أكثر الأصناف مبيعًا
-    # --------------------------------------------------------
-
     top_products = (
         SaleItem.objects
         .filter(
@@ -1116,10 +1125,6 @@ def _get_report_data(start, end):
         )
         .order_by('-total_qty')[:10]
     )
-
-    # --------------------------------------------------------
-    # المبيعات اليومية
-    # --------------------------------------------------------
 
     daily_sales = (
         SaleItem.objects
@@ -1144,10 +1149,6 @@ def _get_report_data(start, end):
         )
         .order_by('day')
     )
-
-    # --------------------------------------------------------
-    # ملخص المخزون الحالي
-    # --------------------------------------------------------
 
     stock_summary = (
         StockItem.objects
@@ -1290,10 +1291,6 @@ def export_sales_pdf(request):
         author='منصة إمداد الرقمية',
     )
 
-    # --------------------------------------------------------
-    # الأنماط
-    # --------------------------------------------------------
-
     title_style = ParagraphStyle(
         'ArabicTitle',
         fontName=font_name,
@@ -1349,10 +1346,6 @@ def export_sales_pdf(request):
 
     story = []
 
-    # --------------------------------------------------------
-    # العنوان
-    # --------------------------------------------------------
-
     story.append(
         Paragraph(
             _arabic_text(
@@ -1387,10 +1380,6 @@ def export_sales_pdf(request):
             5
         )
     )
-
-    # --------------------------------------------------------
-    # بطاقات الملخص
-    # --------------------------------------------------------
 
     summary_data = [
         [
@@ -1503,10 +1492,6 @@ def export_sales_pdf(request):
         )
     )
 
-    # --------------------------------------------------------
-    # ملخص طرق الدفع
-    # --------------------------------------------------------
-
     story.append(
         Paragraph(
             _arabic_text(
@@ -1618,10 +1603,6 @@ def export_sales_pdf(request):
     story.append(
         payment_table
     )
-
-    # --------------------------------------------------------
-    # أكثر الأصناف مبيعًا
-    # --------------------------------------------------------
 
     story.append(
         Paragraph(
@@ -1747,10 +1728,6 @@ def export_sales_pdf(request):
         top_table
     )
 
-    # --------------------------------------------------------
-    # المبيعات اليومية
-    # --------------------------------------------------------
-
     story.append(
         Paragraph(
             _arabic_text(
@@ -1864,10 +1841,6 @@ def export_sales_pdf(request):
     story.append(
         daily_table
     )
-
-    # --------------------------------------------------------
-    # تفاصيل المبيعات
-    # --------------------------------------------------------
 
     story.append(
         PageBreak()
@@ -2033,10 +2006,6 @@ def export_sales_pdf(request):
         sales_table
     )
 
-    # --------------------------------------------------------
-    # تفاصيل المشتريات
-    # --------------------------------------------------------
-
     story.append(
         Paragraph(
             _arabic_text(
@@ -2195,10 +2164,6 @@ def export_sales_pdf(request):
         purchase_table
     )
 
-    # --------------------------------------------------------
-    # المخزون الحالي
-    # --------------------------------------------------------
-
     story.append(
         PageBreak()
     )
@@ -2336,10 +2301,6 @@ def export_sales_pdf(request):
         stock_table
     )
 
-    # --------------------------------------------------------
-    # ملاحظة التقرير
-    # --------------------------------------------------------
-
     story.append(
         Spacer(
             1,
@@ -2352,16 +2313,11 @@ def export_sales_pdf(request):
             _arabic_text(
                 'ملاحظة: إجمالي المشتريات يمثل قيمة الشحنات '
                 'المستلمة خلال الفترة، ولا يمثل تكلفة البضاعة '
-                'المباعة. لم يتم احتساب صافي الربح لأن نموذج '
-                'المبيعات الحالي لا يخزن تكلفة الصنف وقت البيع.'
+                'المباعة.'
             ),
             normal_style
         )
     )
-
-    # --------------------------------------------------------
-    # رقم الصفحة
-    # --------------------------------------------------------
 
     def add_page_number(canvas, doc):
 

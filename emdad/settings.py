@@ -26,6 +26,7 @@ ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 # التطبيقات المثبتة
 # ============================================================
 INSTALLED_APPS = [
+    'jazzmin',                  # تم إضافة جازمن في المقدمة لتطبيق التنسيقات على لوحة الإدارة
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -73,21 +74,6 @@ ASGI_APPLICATION = 'emdad.asgi.application'
 # ============================================================
 # قاعدة البيانات
 # ============================================================
-# افتراضياً يستخدم المشروع SQLite لتسهيل التشغيل المباشر والتسليم.
-# بحسب أدوات البحث (الفصل الأول - 1-8) يمكن التحول إلى PostgreSQL أو MySQL
-# بضبط متغيرات البيئة التالية، مثال لـ MySQL:
-#
-#   DJANGO_DB_ENGINE=django.db.backends.mysql
-#   DJANGO_DB_NAME=emdad_db
-#   DJANGO_DB_USER=root
-#   DJANGO_DB_PASSWORD=your_password
-#   DJANGO_DB_HOST=127.0.0.1
-#   DJANGO_DB_PORT=3306
-#
-# ولاستخدام PostgreSQL غيّر DJANGO_DB_ENGINE إلى:
-#   django.db.backends.postgresql
-#
-# ولا تنسَ تثبيت مشغّل قاعدة البيانات المناسب (راجع requirements.txt).
 DB_ENGINE = os.environ.get('DJANGO_DB_ENGINE', 'django.db.backends.sqlite3')
 
 if DB_ENGINE == 'django.db.backends.sqlite3':
@@ -144,4 +130,85 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MESSAGE_TAGS = {
     10: 'info', 20: 'info', 25: 'success', 30: 'warning', 40: 'danger',
+}
+
+# ============================================================
+# إعدادات Django Jazzmin - لوحة تحكم إمداد الاحترافية
+# ============================================================
+JAZZMIN_SETTINGS = {
+    # النصوص والعناوين الرئيسيّة
+    "site_title": "إمداد | لوحة النظام",
+    "site_header": "منصة إمداد الرقمية",
+    "site_brand": "منصة إمداد",
+    "welcome_sign": "مرحباً بك في لوحة إدارة منصة إمداد - مجمع نابلس للغاز",
+    "copyright": "منصة إمداد الرقمية © 2026",
+
+    # الشعار ورابط العودة للواجهة الرئيسيّة
+    "site_logo_classes": "img-circle",
+    "user_avatar": None,
+    "topmenu_links": [
+        {"name": "لوحة التحكم الرئيسية", "url": "dashboard", "permissions": ["auth.view_user"]},
+        {"name": "التقارير", "url": "reports_page", "permissions": ["auth.view_user"]},
+    ],
+
+    # خيارات القائمة الجانبية
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "hide_apps": [],
+    "hide_models": [],
+
+    # أيقونات الأقسام والنماذج (FontAwesome)
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "core.User": "fas fa-user-shield",
+        "core.Group": "fas fa-users",
+        "core.Product": "fas fa-gas-cylinder",
+        "core.StockMovement": "fas fa-exchange-alt",
+        "core.Inventory": "fas fa-boxes",
+        "core.Supplier": "fas fa-truck-loading",
+        "core.Customer": "fas fa-user-tie",
+        "core.Sale": "fas fa-file-invoice-dollar",
+    },
+    "default_icon_parents": "fas fa-folder",
+    "default_icon_children": "fas fa-circle",
+
+    # تخصيص النموذج والشكل
+    "related_modal_active": True,
+    "custom_css": None,
+    "custom_js": None,
+    "use_google_fonts_rosettagothic": True,
+    "show_ui_builder": False,
+}
+
+# تخصيص ألوان الهوية البصرية لمنصة إمداد
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-dark",
+    "accent": "accent-primary",
+    "navbar": "navbar-dark bg-primary",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "flatly",
+    "dark_mode_theme": None,
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
 }
