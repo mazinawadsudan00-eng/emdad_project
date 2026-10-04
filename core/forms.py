@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 
-from .models import Account, Product, Purchase, Sale, StockItem
+from .models import Account, Product, Purchase, Sale, StockItem, Warehouse
 
 
 class StyledAuthenticationForm(AuthenticationForm):
@@ -56,14 +56,14 @@ class PurchaseForm(forms.ModelForm):
 
     class Meta:
         model = Purchase
-        fields = ['product', 'supplier', 'quantity', 'unit_cost', 'condition', 'location']
+        fields = ['product', 'supplier', 'quantity', 'unit_cost', 'condition', 'warehouse']
         labels = {
             'product': 'الصنف',
             'supplier': 'المورد (اختياري)',
             'quantity': 'الكمية الواردة',
             'unit_cost': 'تكلفة الوحدة',
             'condition': 'حالة الوارد',
-            'location': 'موقع التخزين',
+            'warehouse': 'موقع التخزين / المستودع',
         }
         widgets = {
             'product': forms.Select(attrs={'class': 'form-select'}),
@@ -71,7 +71,7 @@ class PurchaseForm(forms.ModelForm):
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'unit_cost': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'condition': forms.Select(attrs={'class': 'form-select'}),
-            'location': forms.TextInput(attrs={'class': 'form-control'}),
+            'warehouse': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -79,6 +79,8 @@ class PurchaseForm(forms.ModelForm):
         self.fields['supplier'].queryset = Account.objects.filter(account_type=Account.AccountType.SUPPLIER)
         self.fields['supplier'].required = False
         self.fields['product'].queryset = Product.objects.filter(is_active=True)
+        if 'warehouse' in self.fields:
+            self.fields['warehouse'].queryset = Warehouse.objects.filter(is_active=True)
 
 
 class StockItemForm(forms.ModelForm):
@@ -86,17 +88,22 @@ class StockItemForm(forms.ModelForm):
 
     class Meta:
         model = StockItem
-        fields = ['quantity', 'location', 'condition']
+        fields = ['quantity', 'warehouse', 'condition']
         labels = {
             'quantity': 'الكمية المتوفرة',
-            'location': 'موقع التخزين',
+            'warehouse': 'موقع التخزين / المستودع',
             'condition': 'الحالة التشغيلية',
         }
         widgets = {
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
-            'location': forms.TextInput(attrs={'class': 'form-control'}),
+            'warehouse': forms.Select(attrs={'class': 'form-select'}),
             'condition': forms.Select(attrs={'class': 'form-select'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'warehouse' in self.fields:
+            self.fields['warehouse'].queryset = Warehouse.objects.filter(is_active=True)
 
 
 class SaleForm(forms.Form):

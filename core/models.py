@@ -82,6 +82,23 @@ class Account(models.Model):
         return abs(self.balance)
 
 
+class Warehouse(models.Model):
+    """فئة المستودع / موقع التخزين: تمثل أماكن ومواقع تخزين الأسطوانات والشحنات."""
+
+    name = models.CharField(max_length=150, verbose_name='اسم المستودع')
+    location = models.CharField(max_length=255, blank=True, verbose_name='العنوان / الموقع')
+    is_active = models.BooleanField(default=True, verbose_name='نشط')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'مستودع'
+        verbose_name_plural = 'المستودعات'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     """فئة الصنف (خزان/أسطوانة الغاز) - يمثل أنواع وأحجام أسطوانات الغاز المتداولة."""
 
@@ -137,13 +154,16 @@ class StockItem(models.Model):
         max_length=20, choices=Condition.choices, default=Condition.FULL, verbose_name='الحالة التشغيلية',
     )
     quantity = models.IntegerField(default=0, validators=[MinValueValidator(0)], verbose_name='الكمية المتوفرة')
-    location = models.CharField(max_length=150, default='المستودع الرئيسي (أ)', verbose_name='موقع التخزين')
+    warehouse = models.ForeignKey(
+        Warehouse, on_delete=models.PROTECT, related_name='stock_items',
+        null=True, blank=True, verbose_name='موقع التخزين',
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'سجل مخزون'
         verbose_name_plural = 'جرد المخزون'
-        unique_together = ('product', 'condition', 'location')
+        unique_together = ('product', 'condition', 'warehouse')
         ordering = ['product__code', 'condition']
 
     def __str__(self):
@@ -175,7 +195,10 @@ class Purchase(models.Model):
         max_length=20, choices=StockItem.Condition.choices, default=StockItem.Condition.FULL,
         verbose_name='حالة الوارد',
     )
-    location = models.CharField(max_length=150, default='المستودع الرئيسي (أ)', verbose_name='موقع التخزين')
+    warehouse = models.ForeignKey(
+        Warehouse, on_delete=models.PROTECT, related_name='purchases',
+        null=True, blank=True, verbose_name='موقع التخزين',
+    )
     received_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name='استلمها',
     )

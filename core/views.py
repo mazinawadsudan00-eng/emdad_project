@@ -358,7 +358,7 @@ def inventory_list(request):
 
     items = (
         StockItem.objects
-        .select_related('product')
+        .select_related('product', 'warehouse')
         .order_by(
             'product__code',
             'condition'
@@ -435,7 +435,7 @@ def add_stock(request):
                     StockItem.objects.get_or_create(
                         product=purchase.product,
                         condition=purchase.condition,
-                        location=purchase.location,
+                        warehouse=purchase.warehouse,
                         defaults={'quantity': 0},
                     )
                 )
@@ -613,7 +613,7 @@ def send_to_maintenance(request, pk):
                             .Condition
                             .MAINTENANCE
                         ),
-                        location='ورشة الصيانة الهندسية',
+                        warehouse=source.warehouse,
                         defaults={'quantity': 0},
                     )
                 )
@@ -737,7 +737,7 @@ def sales_page(request):
                         empty_stock, _ = StockItem.objects.get_or_create(
                             product=product,
                             condition=StockItem.Condition.EMPTY,
-                            location='المستودع الرئيسي (أ)',
+                            warehouse=stock_item.warehouse,
                             defaults={'quantity': 0},
                         )
 

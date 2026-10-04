@@ -54,7 +54,7 @@
                         <th>الكمية المتوفرة</th>
                         <th>الحد الأدنى للمخزون</th>
                         <th>حالة التوفر</th>
-                        <th>موقع التخزين</th>
+                        <th>موقع التخزين / المستودع</th>
                         <th>إجراءات</th>
                     </tr>
                 </thead>
@@ -67,7 +67,13 @@
                         <td class="fw-bold text-primary">{{ item.quantity }}</td>
                         <td>{{ item.product.min_stock_level }}</td>
                         <td><span class="badge bg-{{ status.1 }}-subtle text-{{ status.1 }} status-badge">{{ status.0 }}</span></td>
-                        <td>{{ item.location }}</td>
+                        <td>
+                            {% if item.warehouse %}
+                                {{ item.warehouse.name }}
+                            {% else %}
+                                {{ item.location }}
+                            {% endif %}
+                        </td>
                         <td>
                             <button class="btn btn-sm btn-outline-secondary me-1" type="button" data-bs-toggle="modal" data-bs-target="#editModal{{ item.pk }}"><i class="bi bi-pencil"></i></button>
                             <button class="btn btn-sm btn-outline-warning me-1" type="button" data-bs-toggle="modal" data-bs-target="#maintModal{{ item.pk }}"><i class="bi bi-tools"></i></button>
@@ -93,7 +99,7 @@
                                             <input type="number" min="0" name="quantity" value="{{ item.quantity }}" class="form-control" required>
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label small fw-bold text-secondary">موقع التخزين</label>
+                                            <label class="form-label small fw-bold text-secondary">موقع التخزين / المستودع</label>
                                             <input type="text" name="location" value="{{ item.location }}" class="form-control" required>
                                         </div>
                                         <div class="mb-3">
@@ -180,8 +186,8 @@
                             {{ purchase_form.condition }}
                         </div>
                         <div class="col-6">
-                            <label class="form-label small fw-bold text-secondary">{{ purchase_form.location.label }}</label>
-                            {{ purchase_form.location }}
+                            <label class="form-label small fw-bold text-secondary">{{ purchase_form.warehouse.label }}</label>
+                            {{ purchase_form.warehouse }}
                         </div>
                     </div>
                 </div>

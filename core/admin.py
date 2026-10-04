@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Account, Product, Purchase, Sale, SaleItem, StockItem, StockMovement, User
+from .models import Account, Product, Purchase, Sale, SaleItem, StockItem, StockMovement, User, Warehouse
 
 
 @admin.register(User)
@@ -43,18 +43,25 @@ class SaleAdmin(admin.ModelAdmin):
 
 @admin.register(StockItem)
 class StockItemAdmin(admin.ModelAdmin):
-    list_display = ('product', 'condition', 'quantity', 'location', 'updated_at')
-    list_filter = ('condition',)
-    search_fields = ('product__code', 'product__name')
+    list_display = ('product', 'condition', 'quantity', 'warehouse', 'updated_at')
+    list_filter = ('condition', 'warehouse')
+    search_fields = ('product__code', 'product__name', 'warehouse__name')
 
 
 @admin.register(Purchase)
 class PurchaseAdmin(admin.ModelAdmin):
-    list_display = ('product', 'supplier', 'quantity', 'unit_cost', 'condition', 'received_at', 'received_by')
-    list_filter = ('condition',)
+    list_display = ('product', 'supplier', 'quantity', 'unit_cost', 'condition', 'warehouse', 'received_at', 'received_by')
+    list_filter = ('condition', 'warehouse')
 
 
 @admin.register(StockMovement)
 class StockMovementAdmin(admin.ModelAdmin):
     list_display = ('movement_type', 'product', 'quantity', 'related_account', 'created_by', 'created_at')
     list_filter = ('movement_type',)
+
+
+@admin.register(Warehouse)
+class WarehouseAdmin(admin.ModelAdmin):
+    list_display = ('name', 'location', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'location')
