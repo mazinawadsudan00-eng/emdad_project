@@ -1,11 +1,11 @@
-{%  load static %}
+{% load static %}
 {% load humanize %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة إمداد | EMDAD- {% block page_title %}{% endblock %}</title>
+    <title>منصة إمداد | EMDAD - {% block page_title %}{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -13,76 +13,92 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f6f9;
         }
+        
         .sidebar {
-    min-height: 100vh;
-    background-color: #1e293b;
-    color: #cbd5e1;
-    width: 260px;
-    position: fixed;
-    top: 0;
-    right: 0;
-    z-index: 1000;
-}
+            min-height: 100vh;
+            background-color: #1e293b;
+            color: #cbd5e1;
+            width: 260px;
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 1000;
+        }
 
-.main-content {
-    margin-right: 260px;
-    padding: 2rem;
-    width: calc(100% - 260px);
-}
+        .main-content {
+            margin-right: 260px;
+            padding: 2rem;
+            width: calc(100% - 260px);
+        }
 
-/* حل تداخل القائمة في الهواتف */
-@media (max-width: 768px) {
-    .sidebar {
-        position: relative !important;
-        width: 100% !important;
-        min-height: auto !important;
-    }
-    
-    .main-content {
-        margin-right: 0 !important;
-        width: 100% !important;
-        padding: 1rem !important;
-    }
-}.sidebar {
-    min-height: 100vh;
-    background-color: #1e293b;
-    color: #cbd5e1;
-    width: 260px;
-    position: fixed;
-    top: 0;
-    right: 0;
-    z-index: 1000;
-}
+        /* تنسيق ألوان روابط القائمة الجانبية لتطابق لون العنوان السماوي */
+        .sidebar .nav-link {
+            color: #00bcff !important;
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
 
-.main-content {
-    margin-right: 260px;
-    padding: 2rem;
-    width: calc(100% - 260px);
-}
+        .sidebar .nav-link i {
+            color: #00bcff !important;
+            margin-left: 0.5rem;
+        }
 
-/* حل تداخل القائمة في الهواتف */
-@media (max-width: 768px) {
-    .sidebar {
-        position: relative !important;
-        width: 100% !important;
-        min-height: auto !important;
-    }
-    
-    .main-content {
-        margin-right: 0 !important;
-        width: 100% !important;
-        padding: 1rem !important;
-    }
-}
+        /* تأثير عند توجيه الماوس على الخيار (Hover) أو الخيار النشط */
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: #ffffff !important;
+            background-color: rgba(0, 188, 255, 0.15);
+            border-radius: 6px;
+            margin: 0 8px;
+        }
+
+        .sidebar .nav-link:hover i,
+        .sidebar .nav-link.active i {
+            color: #ffffff !important;
+        }
+
+        /* استثناء خاص لزر تسجيل الخروج لإبقائه باللون الأحمر */
+        .sidebar .nav-link.text-danger,
+        .sidebar .nav-link.text-danger i {
+            color: #dc3545 !important;
+        }
+
+        .sidebar .nav-link.text-danger:hover {
+            background-color: rgba(220, 53, 69, 0.15);
+            color: #ff6b6b !important;
+        }
+
+        .sidebar .nav-link.text-danger:hover i {
+            color: #ff6b6b !important;
+        }
+
+        /* حل تداخل القائمة في الهواتف */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: relative !important;
+                width: 100% !important;
+                min-height: auto !important;
+            }
+            
+            .main-content {
+                margin-right: 0 !important;
+                width: 100% !important;
+                padding: 1rem !important;
+            }
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
 
 <div class="d-flex">
-    <nav class="sidebar  p-0 shadow-sm" id="sidebarNav">
+    <nav class="sidebar p-0 shadow-sm" id="sidebarNav">
         <div class="p-3 text-center border-bottom border-secondary">
-            <h5 class="fw-bold text-info mb-0"><i class="bi  bi-fire "></i> منصة إمداد | EMDDAD</h5>
+            <h5 class="fw-bold text-info mb-0"><i class="bi bi-fire"></i> منصة إمداد | EMDAD</h5>
             <small class="text-muted">مجمع نابلس للغاز</small>
         </div>
         <div class="nav flex-column pt-3">

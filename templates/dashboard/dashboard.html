@@ -27,66 +27,73 @@
 </div>
 {% endif %}
 
+<!-- كروت KPI الرئيسية -->
 <div class="row g-3 mb-4">
     <div class="col-md-3">
-        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-primary border-4">
+        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-primary border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-muted small fw-bold">أسطوانات جاهزة للبيع</span>
                     <h3 class="fw-bold text-dark mt-1 mb-0">{{ ready_qty|intcomma }}</h3>
                 </div>
-                <div class="icon-box bg-primary bg-opacity-10 text-primary"><i class="bi bi-database-fill-check"></i></div>
+                <div class="icon-box bg-primary bg-opacity-10 text-primary p-2 rounded"><i class="bi bi-database-fill-check fs-4"></i></div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-warning border-4">
+        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-warning border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-muted small fw-bold">أسطوانات فارغة (بانتظار التعبئة)</span>
                     <h3 class="fw-bold text-dark mt-1 mb-0">{{ empty_qty|intcomma }}</h3>
                 </div>
-                <div class="icon-box bg-warning bg-opacity-10 text-warning"><i class="bi bi-arrow-repeat"></i></div>
+                <div class="icon-box bg-warning bg-opacity-10 text-warning p-2 rounded"><i class="bi bi-arrow-repeat fs-4"></i></div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-success border-4">
+        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-success border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-muted small fw-bold">إيرادات مبيعات اليوم</span>
                     <h3 class="fw-bold text-dark mt-1 mb-0">{{ today_revenue|floatformat:0|intcomma }} <span class="fs-6 fw-normal text-muted">ج.س</span></h3>
                 </div>
-                <div class="icon-box bg-success bg-opacity-10 text-success"><i class="bi bi-currency-exchange"></i></div>
+                <div class="icon-box bg-success bg-opacity-10 text-success p-2 rounded"><i class="bi bi-currency-exchange fs-4"></i></div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-danger border-4">
+        <div class="card kpi-card p-3 shadow-sm bg-white border-start border-danger border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-muted small fw-bold">أسطوانات تالفة (تحتاج صيانة)</span>
                     <h3 class="fw-bold text-danger mt-1 mb-0">{{ maintenance_qty|intcomma }}</h3>
                 </div>
-                <div class="icon-box bg-danger bg-opacity-10 text-danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div class="icon-box bg-danger bg-opacity-10 text-danger p-2 rounded"><i class="bi bi-exclamation-triangle-fill fs-4"></i></div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="row g-4 mb-4">
+    <!-- قسم الرسم البياني مع فلاتر الفترة الزمنية -->
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm p-3 bg-white h-100">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold text-dark m-0"><i class="bi bi-graph-up text-primary me-1"></i> مراقبة معدل سحب المخزون الأسبوعي</h6>
-                <span class="badge bg-light text-dark border">آخر 6 أيام</span>
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h6 class="fw-bold text-dark m-0"><i class="bi bi-graph-up text-primary me-1"></i> مراقبة معدل سحب المخزون</h6>
+                <div class="btn-group btn-group-sm" role="group" aria-label="فترة العرض">
+                    <button type="button" class="btn btn-outline-primary" id="btn-5days" onclick="filterChart(5)">آخر 5 أيام</button>
+                    <button type="button" class="btn btn-outline-primary active" id="btn-7days" onclick="filterChart(7)">آخر أسبوع</button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-30days" onclick="filterChart(30)">آخر شهر</button>
+                </div>
             </div>
-            <div style="position: relative; height:300px;">
+            <div style="position: relative; height:320px;">
                 <canvas id="mainAnalyticsChart"></canvas>
             </div>
         </div>
     </div>
 
+    <!-- جدول التحركات الأخيرة مع تحسين توحيد صيغة الوقت بالعربي -->
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm p-3 bg-white h-100">
             <h6 class="fw-bold text-dark mb-3"><i class="bi bi-activity text-success me-1"></i> آخر التحركات بالمجمع</h6>
@@ -100,7 +107,11 @@
                         <tr>
                             <td>{{ m.get_movement_type_display }}{% if m.product %} - {{ m.product.code }}{% endif %}</td>
                             <td><span class="text-{{ m.badge_class }} fw-bold">{{ m.quantity|floatformat:0 }}</span></td>
-                            <td><small class="text-muted">{{ m.created_at|timesince }} مضت</small></td>
+                            <td>
+                                <small class="text-muted arabic-time" data-date="{{ m.created_at|date:'c' }}">
+                                    جاري الحساب...
+                                </small>
+                            </td>
                         </tr>
                         {% empty %}
                         <tr><td colspan="3" class="text-center text-muted py-3">لا توجد حركات مسجلة بعد</td></tr>
@@ -119,18 +130,60 @@
 {{ chart_forecast|json_script:"chart-forecast" }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const labels = JSON.parse(document.getElementById('chart-labels').textContent);
-    const actual = JSON.parse(document.getElementById('chart-actual').textContent);
-    const forecast = JSON.parse(document.getElementById('chart-forecast').textContent);
+    // 1. تحويل الوقت للغة العربية بالكامل
+    function formatArabicTimeAgo(dateString) {
+        const now = new Date();
+        const date = new Date(dateString);
+        const seconds = Math.floor((now - date) / 1000);
+
+        if (seconds < 60) return "قبل لحظات";
+        
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) {
+            if (minutes === 1) return "قبل دقيقة";
+            if (minutes === 2) return "قبل دقيقتين";
+            if (minutes >= 3 && minutes <= 10) return `قبل ${minutes} دقائق`;
+            return `قبل ${minutes} دقيقة`;
+        }
+
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) {
+            if (hours === 1) return "قبل ساعة";
+            if (hours === 2) return "قبل ساعتين";
+            if (hours >= 3 && hours <= 10) return `قبل ${hours} ساعات`;
+            return `قبل ${hours} ساعة`;
+        }
+
+        const days = Math.floor(hours / 24);
+        if (days === 1) return "أمس";
+        if (days === 2) return "قبل يومين";
+        if (days >= 3 && days <= 10) return `قبل ${days} أيام`;
+        return `قبل ${days} يوماً`;
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".arabic-time").forEach(function (el) {
+            const rawDate = el.getAttribute("data-date");
+            if (rawDate) {
+                el.textContent = formatArabicTimeAgo(rawDate);
+            }
+        });
+    });
+
+    // 2. إعداد الرسم البياني وتصفيته تفاعلياً
+    const fullLabels = JSON.parse(document.getElementById('chart-labels').textContent);
+    const fullActual = JSON.parse(document.getElementById('chart-actual').textContent);
+    const fullForecast = JSON.parse(document.getElementById('chart-forecast').textContent);
+    
     const ctx = document.getElementById('mainAnalyticsChart').getContext('2d');
-    new Chart(ctx, {
+    let analyticsChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
+            labels: fullLabels,
             datasets: [
                 {
                     label: 'المبيعات الفعلية (أسطوانة)',
-                    data: actual,
+                    data: fullActual,
                     borderColor: '#0ea5e9',
                     backgroundColor: 'rgba(14, 165, 233, 0.1)',
                     fill: true,
@@ -138,7 +191,7 @@
                 },
                 {
                     label: 'الطلب المتوقع (متوسط أسي)',
-                    data: forecast,
+                    data: fullForecast,
                     borderColor: '#94a3b8',
                     borderDash: [5, 5],
                     backgroundColor: 'transparent',
@@ -154,5 +207,27 @@
             scales: { y: { beginAtZero: true } }
         }
     });
+
+    // دالة تصفية بيانات الرسم البياني بحسب الزر المختار
+    function filterChart(days) {
+        document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
+        
+        let sliceCount = days;
+        if (days === 5) {
+            document.getElementById('btn-5days').classList.add('active');
+            sliceCount = 5;
+        } else if (days === 7) {
+            document.getElementById('btn-7days').classList.add('active');
+            sliceCount = 7;
+        } else if (days === 30) {
+            document.getElementById('btn-30days').classList.add('active');
+            sliceCount = 30;
+        }
+
+        analyticsChart.data.labels = fullLabels.slice(-sliceCount);
+        analyticsChart.data.datasets[0].data = fullActual.slice(-sliceCount);
+        analyticsChart.data.datasets[1].data = fullForecast.slice(-sliceCount);
+        analyticsChart.update();
+    }
 </script>
 {% endblock %}

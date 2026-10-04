@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% load humanize %}
+
 {% block page_title %}العملاء والموردين{% endblock %}
 
 {% block content %}
@@ -18,19 +20,19 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm p-3 bg-white text-center">
             <span class="text-muted small fw-bold">إجمالي ديون العملاء (لنا)</span>
-            <h4 class="fw-bold text-warning mt-1 mb-0">{{ customer_debt|floatformat:0 }} <small class="fs-6 fw-normal">ج.س</small></h4>
+            <h4 class="fw-bold text-warning mt-1 mb-0">{{ customer_debt|floatformat:0|intcomma }} <small class="fs-6 fw-normal">ج.س</small></h4>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card border-0 shadow-sm p-3 bg-white text-center">
             <span class="text-muted small fw-bold">مستحقات الموردين (علينا)</span>
-            <h4 class="fw-bold text-danger mt-1 mb-0">{{ supplier_payable|floatformat:0 }} <small class="fs-6 fw-normal">ج.س</small></h4>
+            <h4 class="fw-bold text-danger mt-1 mb-0">{{ supplier_payable|floatformat:0|intcomma }} <small class="fs-6 fw-normal">ج.س</small></h4>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card border-0 shadow-sm p-3 bg-white text-center">
             <span class="text-muted small fw-bold">عدد العقود النشطة</span>
-            <h4 class="fw-bold text-success mt-1 mb-0">{{ active_contracts }} <small class="fs-6 fw-normal">عقد توزيع</small></h4>
+            <h4 class="fw-bold text-success mt-1 mb-0">{{ active_contracts|intcomma }} <small class="fs-6 fw-normal">عقد توزيع</small></h4>
         </div>
     </div>
 </div>
@@ -61,7 +63,7 @@
                         <td>{{ acc.phone|default:"—" }}</td>
                         <td>{{ acc.region|default:"—" }}</td>
                         <td class="fw-bold {% if acc.balance > 0 %}text-warning{% elif acc.balance < 0 %}text-danger{% else %}text-success{% endif %}">
-                            {% if acc.balance > 0 %}{{ acc.balance|floatformat:0 }}+{% elif acc.balance < 0 %}{{ acc.balance_abs|floatformat:0 }}-{% else %}0.00{% endif %} ج.س
+                            {% if acc.balance > 0 %}{{ acc.balance|floatformat:0|intcomma }}+{% elif acc.balance < 0 %}{{ acc.balance_abs|floatformat:0|intcomma }}-{% else %}0.00{% endif %} ج.س
                         </td>
                         <td>
                             {% if acc.is_active %}<span class="badge bg-success-subtle text-success">نشط</span>
@@ -92,7 +94,7 @@
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body text-start">
-                                        <p class="small text-muted mb-2">الرصيد الحالي: {{ acc.balance|floatformat:2 }} ج.س</p>
+                                        <p class="small text-muted mb-2">الرصيد الحالي: {{ acc.balance|floatformat:2|intcomma }} ج.س</p>
                                         <label class="form-label small fw-bold text-secondary">المبلغ</label>
                                         <input type="number" step="0.01" min="0" name="amount" class="form-control" required>
                                     </div>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load humanize %}
 
 {% block page_title %}
 التقارير والتحليلات
@@ -123,7 +124,7 @@
 
                         <h4 class="fw-bold text-success mt-2 mb-0">
 
-                            {{ total_sales|floatformat:0 }}
+                            {{ total_sales|floatformat:0|intcomma }}
 
                             <small class="fs-6 fw-normal">
                                 ج.س
@@ -164,7 +165,7 @@
 
                         <h4 class="fw-bold text-primary mt-2 mb-0">
 
-                            {{ total_purchases|floatformat:0 }}
+                            {{ total_purchases|floatformat:0|intcomma }}
 
                             <small class="fs-6 fw-normal">
                                 ج.س
@@ -204,7 +205,7 @@
                         </small>
 
                         <h4 class="fw-bold text-dark mt-2 mb-0">
-                            {{ sales_count }}
+                            {{ sales_count|intcomma }}
                         </h4>
 
                     </div>
@@ -239,7 +240,7 @@
                         </small>
 
                         <h4 class="fw-bold text-warning mt-2 mb-0">
-                            {{ total_sold_qty }}
+                            {{ total_sold_qty|intcomma }}
                         </h4>
 
                     </div>
@@ -289,7 +290,7 @@
                     </div>
 
                     <div class="fs-5 fw-bold text-success">
-                        {{ cash_sales|floatformat:0 }}
+                        {{ cash_sales|floatformat:0|intcomma }}
                         ج.س
                     </div>
 
@@ -307,7 +308,7 @@
                     </div>
 
                     <div class="fs-5 fw-bold text-primary">
-                        {{ bank_sales|floatformat:0 }}
+                        {{ bank_sales|floatformat:0|intcomma }}
                         ج.س
                     </div>
 
@@ -325,7 +326,7 @@
                     </div>
 
                     <div class="fs-5 fw-bold text-warning">
-                        {{ credit_sales|floatformat:0 }}
+                        {{ credit_sales|floatformat:0|intcomma }}
                         ج.س
                     </div>
 
@@ -396,11 +397,11 @@
                             </td>
 
                             <td>
-                                {{ item.total_qty }}
+                                {{ item.total_qty|intcomma }}
                             </td>
 
                             <td class="fw-bold text-success">
-                                {{ item.total_value|floatformat:0 }}
+                                {{ item.total_value|floatformat:0|intcomma }}
                             </td>
 
                         </tr>
@@ -482,11 +483,11 @@
                             </td>
 
                             <td>
-                                {{ row.quantity }}
+                                {{ row.quantity|intcomma }}
                             </td>
 
                             <td class="fw-bold text-success">
-                                {{ row.total|floatformat:0 }}
+                                {{ row.total|floatformat:0|intcomma }}
                             </td>
 
                         </tr>
@@ -609,7 +610,7 @@
                         </td>
 
                         <td class="fw-bold text-success">
-                            {{ sale.total|floatformat:0 }}
+                            {{ sale.total|floatformat:0|intcomma }}
                             ج.س
                         </td>
 
@@ -710,15 +711,15 @@
                         </td>
 
                         <td>
-                            {{ p.quantity }}
+                            {{ p.quantity|intcomma }}
                         </td>
 
                         <td>
-                            {{ p.unit_cost|floatformat:0 }}
+                            {{ p.unit_cost|floatformat:0|intcomma }}
                         </td>
 
                         <td class="fw-bold text-primary">
-                            {{ p.total_cost|floatformat:0 }}
+                            {{ p.total_cost|floatformat:0|intcomma }}
                         </td>
 
                         <td>
