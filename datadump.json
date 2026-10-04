@@ -485,7 +485,7 @@
       "product": 1,
       "condition": "full",
       "quantity": 2222,
-      "warehouse": "المستودع الرئيسي (أ)",
+      "warehouse": 1,
       "updated_at": "2026-10-01T06:51:02.299Z"
     }
   },
@@ -496,7 +496,7 @@
       "product": 2,
       "condition": "full",
       "quantity": 1850,
-      "warehouse": "المستودع الرئيسي (أ)",
+      "warehouse": 1,
       "updated_at": "2026-09-27T13:12:04.516Z"
     }
   },
@@ -507,7 +507,7 @@
       "product": 12,
       "condition": "full",
       "quantity": 79,
-      "warehouse": "المستودع الرئيسي (أ)",
+      "warehouse": 1,
       "updated_at": "2026-09-27T13:50:42.035Z"
     }
   },
@@ -518,7 +518,7 @@
       "product": 4,
       "condition": "full",
       "quantity": 95,
-      "warehouse": "المستودع الرئيسي (أ)",
+      "warehouse": 1,
       "updated_at": "2026-09-27T13:57:50.529Z"
     }
   },
@@ -529,7 +529,7 @@
       "product": 1,
       "condition": "empty",
       "quantity": 7,
-      "warehouse": "المستودع الرئيسي (أ)",
+      "warehouse": 1,
       "updated_at": "2026-10-01T06:51:02.302Z"
     }
   },
@@ -540,7 +540,7 @@
       "product": 2,
       "condition": "empty",
       "quantity": 2000,
-      "warehouse": "المستودع الرئيسي (أ)",
+      "warehouse": 1,
       "updated_at": "2026-09-30T11:24:03.014Z"
     }
   },
