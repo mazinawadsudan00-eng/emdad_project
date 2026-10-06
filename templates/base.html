@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1e293b">
     <title>منصة إمداد | EMDAD - {% block page_title %}{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
@@ -13,81 +14,251 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f6f9;
         }
-        
-        .sidebar {
-            min-height: 100vh;
+
+        /* ============================================================
+           الشريط العلوي (Top Navbar) - بنفس الهوية البصرية السابقة
+           ============================================================ */
+        .emdad-navbar {
             background-color: #1e293b;
-            color: #cbd5e1;
-            width: 260px;
-            position: fixed;
-            top: 0;
-            right: 0;
-            z-index: 1000;
+            padding: 0;
+            min-height: 58px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+            border-bottom: 1px solid rgba(0, 188, 255, 0.15);
         }
 
-        .main-content {
-            margin-right: 260px;
-            padding: 2rem;
-            width: calc(100% - 260px);
+        .emdad-navbar .container-fluid {
+            padding-left: 1.25rem;
+            padding-right: 1.25rem;
         }
 
-        /* تنسيق ألوان روابط القائمة الجانبية لتطابق لون العنوان السماوي */
-        .sidebar .nav-link {
-            color: #00bcff !important;
-            padding: 0.75rem 1.25rem;
+        /* الشعار */
+        .emdad-navbar .navbar-brand {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 0.65rem;
+            margin: 0 0 0 1.25rem;
+            padding: 0.4rem 0;
+            color: #00bcff;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .emdad-navbar .navbar-brand:hover {
+            color: #4fd3ff;
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background-color: rgba(0, 188, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #00bcff;
+            flex-shrink: 0;
+        }
+
+        .brand-text {
+            line-height: 1.15;
+            font-size: 1rem;
+        }
+
+        .brand-text small {
+            display: block;
+            font-size: 0.68rem;
+            font-weight: 400;
+            color: #94a3b8;
+        }
+
+        /* روابط الأقسام */
+        .emdad-navbar .navbar-nav {
+            gap: 2px;
+        }
+
+        .emdad-navbar .nav-link {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            height: 46px;
+            margin: 6px 0;
+            padding: 0 0.8rem;
+            border-radius: 8px;
+            color: #00bcff !important;
             font-weight: 500;
+            font-size: 0.93rem;
+            white-space: nowrap;
             transition: all 0.2s ease-in-out;
         }
 
-        .sidebar .nav-link i {
-            color: #00bcff !important;
-            margin-left: 0.5rem;
+        .emdad-navbar .nav-link i {
+            color: #00bcff;
+            font-size: 1.05rem;
+            transition: color 0.2s ease-in-out;
         }
 
-        /* تأثير عند توجيه الماوس على الخيار (Hover) أو الخيار النشط */
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active {
+        /* Hover + القسم النشط (يبقى مظللاً عند فتح الصفحة) */
+        .emdad-navbar .nav-link:hover,
+        .emdad-navbar .nav-link.active {
             color: #ffffff !important;
             background-color: rgba(0, 188, 255, 0.15);
-            border-radius: 6px;
-            margin: 0 8px;
         }
 
-        .sidebar .nav-link:hover i,
-        .sidebar .nav-link.active i {
-            color: #ffffff !important;
+        .emdad-navbar .nav-link:hover i,
+        .emdad-navbar .nav-link.active i {
+            color: #ffffff;
         }
 
-        /* استثناء خاص لزر تسجيل الخروج لإبقائه باللون الأحمر */
-        .sidebar .nav-link.text-danger,
-        .sidebar .nav-link.text-danger i {
-            color: #dc3545 !important;
+        /* خط سفلي مميز للقسم النشط (مثل شريط فيسبوك) */
+        .emdad-navbar .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            right: 10px;
+            left: 10px;
+            height: 3px;
+            border-radius: 3px 3px 0 0;
+            background-color: #00bcff;
         }
 
-        .sidebar .nav-link.text-danger:hover {
+        .emdad-navbar .nav-link .badge {
+            font-size: 0.65rem;
+        }
+
+        /* قائمة المستخدم */
+        .user-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.3rem 0.6rem;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .user-toggle:hover,
+        .user-toggle:focus,
+        .user-toggle.show {
+            background-color: rgba(0, 188, 255, 0.15);
+            color: #ffffff;
+        }
+
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background-color: rgba(0, 188, 255, 0.2);
+            color: #00bcff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .emdad-navbar .dropdown-menu {
+            background-color: #1e293b;
+            border: 1px solid rgba(0, 188, 255, 0.2);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            min-width: 220px;
+            margin-top: 6px;
+        }
+
+        .emdad-navbar .dropdown-header {
+            color: #94a3b8;
+        }
+
+        .emdad-navbar .dropdown-divider {
+            border-color: rgba(148, 163, 184, 0.25);
+        }
+
+        .emdad-navbar .dropdown-item {
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .emdad-navbar .dropdown-item:hover {
+            background-color: rgba(0, 188, 255, 0.15);
+            color: #ffffff;
+        }
+
+        /* تسجيل الخروج يبقى باللون الأحمر */
+        .emdad-navbar .dropdown-item.logout-item,
+        .emdad-navbar .dropdown-item.logout-item i {
+            color: #dc3545;
+        }
+
+        .emdad-navbar .dropdown-item.logout-item:hover {
             background-color: rgba(220, 53, 69, 0.15);
-            color: #ff6b6b !important;
+            color: #ff6b6b;
         }
 
-        .sidebar .nav-link.text-danger:hover i {
-            color: #ff6b6b !important;
+        .emdad-navbar .dropdown-item.logout-item:hover i {
+            color: #ff6b6b;
         }
 
-        /* حل تداخل القائمة في الهواتف */
-        @media (max-width: 768px) {
-            .sidebar {
-                position: relative !important;
-                width: 100% !important;
-                min-height: auto !important;
+        /* زر القائمة (☰) للشاشات الصغيرة */
+        .emdad-navbar .navbar-toggler {
+            border: 1px solid rgba(0, 188, 255, 0.4);
+            padding: 0.3rem 0.55rem;
+        }
+
+        .emdad-navbar .navbar-toggler:focus {
+            box-shadow: 0 0 0 0.2rem rgba(0, 188, 255, 0.25);
+        }
+
+        /* المحتوى الرئيسي بعرض الشاشة كاملاً */
+        .main-content {
+            width: 100%;
+            padding: 1.5rem 2rem;
+        }
+
+        /* الشاشات الأصغر من 1200px: قائمة منسدلة عمودية */
+        @media (max-width: 1199.98px) {
+            .emdad-navbar .navbar-collapse {
+                padding: 0.5rem 0 0.75rem;
+                border-top: 1px solid rgba(148, 163, 184, 0.2);
             }
-            
+
+            .emdad-navbar .nav-link {
+                height: auto;
+                margin: 2px 0;
+                padding: 0.65rem 1rem;
+            }
+
+            .emdad-navbar .nav-link.active {
+                border-right: 3px solid #00bcff;
+                border-radius: 0 8px 8px 0;
+            }
+
+            .emdad-navbar .nav-link.active::after {
+                display: none;
+            }
+
+            .emdad-navbar .user-menu {
+                margin-top: 0.5rem;
+                padding-top: 0.5rem;
+                border-top: 1px solid rgba(148, 163, 184, 0.2);
+            }
+
+            .emdad-navbar .dropdown-menu {
+                position: static !important;
+                transform: none !important;
+                box-shadow: none;
+                margin-top: 4px;
+            }
+        }
+
+        @media (max-width: 768px) {
             .main-content {
-                margin-right: 0 !important;
-                width: 100% !important;
-                padding: 1rem !important;
+                padding: 1rem;
             }
         }
     </style>
@@ -95,53 +266,101 @@
 </head>
 <body>
 
-<div class="d-flex">
-    <nav class="sidebar p-0 shadow-sm" id="sidebarNav">
-        <div class="p-3 text-center border-bottom border-secondary">
-            <h5 class="fw-bold text-info mb-0"><i class="bi bi-fire"></i> منصة إمداد | EMDAD</h5>
-            <small class="text-muted">مجمع نابلس للغاز</small>
-        </div>
-        <div class="nav flex-column pt-3">
-            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
-                <span><i class="bi bi-speedometer2"></i> لوحة التحكم</span>
-            </a>
-            <a class="nav-link {% if request.resolver_match.url_name == 'inventory_list' %}active{% endif %}" href="{% url 'inventory_list' %}">
-                <span><i class="bi bi-box-seam"></i> إدارة المخزون</span>
-                {% if low_stock_count %}<span class="badge bg-danger rounded-pill">{{ low_stock_count }}</span>{% endif %}
-            </a>
-            <a class="nav-link {% if request.resolver_match.url_name == 'sales_page' %}active{% endif %}" href="{% url 'sales_page' %}">
-                <span><i class="bi bi-cart3"></i> المبيعات والفواتير</span>
-            </a>
-            <a class="nav-link {% if request.resolver_match.url_name == 'customers_page' %}active{% endif %}" href="{% url 'customers_page' %}">
-                <span><i class="bi bi-people"></i> العملاء والموردين</span>
-            </a>
-            <a class="nav-link {% if request.resolver_match.url_name == 'reports_page' %}active{% endif %}" href="{% url 'reports_page' %}">
-                <span><i class="bi bi-graph-up-arrow"></i> التقارير والتحليلات</span>
-            </a>
-            {% if request.user.is_staff or request.user.is_superuser %}
-            <a class="nav-link" href="/admin/" target="_blank">
-                <span><i class="bi bi-shield-lock"></i> إدارة المستخدمين</span>
-            </a>
-            {% endif %}
-            <hr class="text-secondary my-2 mx-3">
-            <a class="nav-link text-danger" href="{% url 'logout' %}">
-                <span><i class="bi bi-box-arrow-right"></i> تسجيل الخروج</span>
-            </a>
-        </div>
-    </nav>
+<nav class="navbar navbar-expand-xl navbar-dark sticky-top emdad-navbar" id="topNav">
+    <div class="container-fluid">
 
-    <main class="main-content">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <!-- الشعار -->
+        <a class="navbar-brand" href="{% url 'dashboard' %}">
+            <span class="brand-icon"><i class="bi bi-fire"></i></span>
+            <span class="brand-text">
+                منصة إمداد | EMDAD
+                <small>مجمع نابلس للغاز</small>
+            </span>
+        </a>
+
+        {% if request.user.is_authenticated %}
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavMenu"
+                aria-controls="topNavMenu" aria-expanded="false" aria-label="القائمة">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="topNavMenu">
+
+            <!-- الأقسام -->
+            <ul class="navbar-nav align-items-xl-center">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                        <i class="bi bi-speedometer2"></i> لوحة التحكم
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'inventory_list' %}active{% endif %}" href="{% url 'inventory_list' %}">
+                        <i class="bi bi-box-seam"></i> إدارة المخزون
+                        {% if low_stock_count %}<span class="badge bg-danger rounded-pill">{{ low_stock_count }}</span>{% endif %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'sales_page' %}active{% endif %}" href="{% url 'sales_page' %}">
+                        <i class="bi bi-cart3"></i> المبيعات والفواتير
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'customers_page' %}active{% endif %}" href="{% url 'customers_page' %}">
+                        <i class="bi bi-people"></i> العملاء والموردين
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'reports_page' %}active{% endif %}" href="{% url 'reports_page' %}">
+                        <i class="bi bi-graph-up-arrow"></i> التقارير والتحليلات
+                    </a>
+                </li>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin/" target="_blank">
+                        <i class="bi bi-shield-lock"></i> إدارة المستخدمين
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+
+            <!-- قائمة المستخدم (يسار الشريط) -->
+            <div class="ms-xl-auto user-menu">
+                <div class="dropdown">
+                    <button class="user-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="user-avatar"><i class="bi bi-person-fill"></i></span>
+                        <span class="d-xl-none d-xxl-inline">{{ request.user.get_full_name|default:request.user.username }}</span>
+                        <i class="bi bi-chevron-down small"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <h6 class="dropdown-header">{{ request.user.get_full_name|default:request.user.username }}</h6>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item logout-item" href="{% url 'logout' %}">
+                                <i class="bi bi-box-arrow-right"></i> تسجيل الخروج
+                            </a>
+                        </li>
+                    </ul>
                 </div>
-            {% endfor %}
+            </div>
+
+        </div>
         {% endif %}
-        {% block content %}{% endblock %}
-    </main>
-</div>
+    </div>
+</nav>
+
+<main class="main-content">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 {% block extra_js %}{% endblock %}

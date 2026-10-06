@@ -27,15 +27,38 @@
 </div>
 {% endif %}
 
-<!-- كروت KPI الرئيسية موزعة في صف واحد أفقياً -->
-<div class="row row-cols-1 row-cols-sm-2 row-cols-md-5 g-3 mb-4">
-    <!-- 1. أسطوانات جاهزة للبيع -->
+<!-- كروت KPI الرئيسية (كرت السلايسر + 5 كروت) -->
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-6 g-3 mb-4">
+
+    <!-- كرت السلايسر (عند الضغط عليه تظهر خيارات التصفية) -->
     <div class="col">
+        <div id="slicerCard"
+             class="card p-3 shadow-sm bg-white border-0 border-start border-secondary border-4 h-100"
+             style="cursor: pointer;"
+             data-bs-toggle="modal"
+             data-bs-target="#slicerModal"
+             role="button"
+             tabindex="0">
+            <div class="d-flex justify-content-between align-items-center">
+                <div style="min-width: 0;">
+                    <span class="text-muted small fw-bold d-block" dir="ltr" style="text-align: right;">Slicer</span>
+                    <h6 class="fw-bold text-dark mt-1 mb-0 text-truncate" id="slicerCardValue">Select</h6>
+                    <small class="text-muted d-block text-truncate" id="slicerCardSub">اضغط للتصفية</small>
+                </div>
+                <div class="rounded-circle bg-secondary bg-opacity-10 text-secondary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; flex-shrink: 0;">
+                    <i class="bi bi-funnel-fill fs-5"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. أسطوانات جاهزة للبيع -->
+    <div class="col kpi-cylinder">
         <div class="card p-3 shadow-sm bg-white border-0 border-start border-primary border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-muted small fw-bold d-block">جاهزة للبيع</span>
-                    <h4 class="fw-bold text-dark mt-1 mb-0">{{ ready_qty|intcomma }}</h4>
+                    <h4 class="fw-bold text-dark mt-1 mb-0" id="readyQtyCard">{{ ready_qty|intcomma }}</h4>
                 </div>
                 <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; flex-shrink: 0;">
                     <i class="bi bi-database-fill-check fs-5"></i>
@@ -45,12 +68,12 @@
     </div>
 
     <!-- 2. أسطوانات فارغة -->
-    <div class="col">
+    <div class="col kpi-cylinder">
         <div class="card p-3 shadow-sm bg-white border-0 border-start border-warning border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-muted small fw-bold d-block">أسطوانات فارغة</span>
-                    <h4 class="fw-bold text-dark mt-1 mb-0">{{ empty_qty|intcomma }}</h4>
+                    <h4 class="fw-bold text-dark mt-1 mb-0" id="emptyQtyCard">{{ empty_qty|intcomma }}</h4>
                 </div>
                 <div class="rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; flex-shrink: 0;">
                     <i class="bi bi-arrow-repeat fs-5"></i>
@@ -60,12 +83,12 @@
     </div>
 
     <!-- 3. إيرادات مبيعات اليوم -->
-    <div class="col">
+    <div class="col kpi-cylinder">
         <div class="card p-3 shadow-sm bg-white border-0 border-start border-success border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-muted small fw-bold d-block">إيرادات اليوم</span>
-                    <h4 class="fw-bold text-dark mt-1 mb-0">{{ today_revenue|floatformat:0|intcomma }} <small class="fs-7 fw-normal text-muted">ج.س</small></h4>
+                    <h4 class="fw-bold text-dark mt-1 mb-0"><span id="todayRevenueCard">{{ today_revenue|floatformat:0|intcomma }}</span> <small class="fs-7 fw-normal text-muted">ج.س</small></h4>
                 </div>
                 <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; flex-shrink: 0;">
                     <i class="bi bi-currency-exchange fs-5"></i>
@@ -75,12 +98,12 @@
     </div>
 
     <!-- 4. صافي ربح اليوم -->
-    <div class="col">
+    <div class="col kpi-cylinder">
         <div class="card p-3 shadow-sm bg-white border-0 border-start border-info border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-muted small fw-bold d-block">صافي الربح</span>
-                    <h4 class="fw-bold text-dark mt-1 mb-0">{{ net_profit|floatformat:0|intcomma }} <small class="fs-7 fw-normal text-muted">ج.س</small></h4>
+                    <h4 class="fw-bold text-dark mt-1 mb-0"><span id="netProfitCard">{{ net_profit|floatformat:0|intcomma }}</span> <small class="fs-7 fw-normal text-muted">ج.س</small></h4>
                 </div>
                 <div class="rounded-circle bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; flex-shrink: 0;">
                     <i class="bi bi-graph-up-arrow fs-5"></i>
@@ -90,12 +113,12 @@
     </div>
 
     <!-- 5. أسطوانات صيانة -->
-    <div class="col">
+    <div class="col kpi-cylinder">
         <div class="card p-3 shadow-sm bg-white border-0 border-start border-danger border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-muted small fw-bold d-block">أسطوانات صيانة</span>
-                    <h4 class="fw-bold text-danger mt-1 mb-0">{{ maintenance_qty|intcomma }}</h4>
+                    <h4 class="fw-bold text-danger mt-1 mb-0" id="maintenanceQtyCard">{{ maintenance_qty|intcomma }}</h4>
                 </div>
                 <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; flex-shrink: 0;">
                     <i class="bi bi-exclamation-triangle-fill fs-5"></i>
@@ -105,8 +128,43 @@
     </div>
 </div>
 
-<div class="row g-4 mb-4">
-    <!-- قسم الرسم البياني مع فلاتر الفترة الزمنية -->
+<!-- نافذة خيارات السلايسر -->
+<div class="modal fade" id="slicerModal" tabindex="-1" aria-labelledby="slicerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="slicerModalLabel" dir="ltr">
+                    <i class="bi bi-funnel-fill text-primary me-1"></i> Slicer
+                </h6>
+                <button type="button" class="btn-close ms-0 me-auto" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="slicerCategory" class="form-label small fw-bold text-secondary">تصنيف التصفية</label>
+                    <select id="slicerCategory" class="form-select">
+                        <option value="">-- اختر التصنيف --</option>
+                        <option value="type">نوع الأسطوانة / الصنف</option>
+                        <option value="supplier">المورد</option>
+                        <option value="customer">العميل</option>
+                    </select>
+                </div>
+                <div class="mb-1">
+                    <label for="slicerItem" class="form-label small fw-bold text-secondary">العنصر المحدد</label>
+                    <select id="slicerItem" class="form-select" disabled>
+                        <option value="">-- اختر التصنيف أولاً --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="resetSlicer" class="btn btn-outline-secondary w-100">إعادة التعيين</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- الرسوم البيانية: تظهر في الحالة العامة وعند اختيار نوع أسطوانة -->
+<div class="row g-4 mb-4" id="chartsRow">
+    <!-- الرسم الخطي مع فلاتر الفترة الزمنية -->
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm p-3 bg-white h-100">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -123,9 +181,37 @@
         </div>
     </div>
 
-    <!-- جدول التحركات الأخيرة (عرض آخر 5 تحركات فقط) -->
+    <!-- رسم الـ Pie: عام افتراضياً، ومخصص عند استخدام السلايسر -->
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm p-3 bg-white h-100">
+            <h6 class="fw-bold text-dark mb-3">
+                <i class="bi bi-pie-chart-fill text-primary me-1"></i>
+                <span id="pieTitle">توزيع حالة الأسطوانات</span>
+                <span class="text-muted fw-normal small" id="pieSubtitle">— الإجمالي العام</span>
+            </h6>
+            <div style="position: relative; height: 320px;">
+                <canvas id="slicerPieChart"></canvas>
+                <div id="pieEmpty" class="d-none position-absolute top-50 start-50 translate-middle text-muted small text-center">
+                    لا توجد بيانات لعرضها
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جداول العملاء / الموردين: تظهر بدل الرسوم عند اختيار عميل أو مورد -->
+<div class="row g-4 mb-4 d-none" id="partnerRow">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm p-3 bg-white">
+            <div id="partnerContent"></div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول التحركات الأخيرة (عرض آخر 5 تحركات فقط) -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm p-3 bg-white">
             <h6 class="fw-bold text-dark mb-3"><i class="bi bi-activity text-success me-1"></i> آخر التحركات بالمجمع</h6>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
@@ -158,9 +244,48 @@
 {{ chart_labels|json_script:"chart-labels" }}
 {{ chart_actual|json_script:"chart-actual" }}
 {{ chart_forecast|json_script:"chart-forecast" }}
+{{ pie_labels|json_script:"pie-labels" }}
+{{ pie_values|json_script:"pie-values" }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // ============================================================
+    // 0. دوال مساعدة
+    // ============================================================
+
+    // تحوّل أي قيمة (رقم أو نص مثل "1,250.00") إلى رقم صالح، وإلا ترجع 0
+    function toNum(value) {
+        if (value === null || value === undefined) return 0;
+        if (typeof value === 'number') return isFinite(value) ? value : 0;
+        const cleaned = String(value).replace(/[,\s٬]/g, '');
+        const n = Number(cleaned);
+        return isFinite(n) ? n : 0;
+    }
+
+    // تنسيق الرقم للعرض بدون كسور
+    function fmtInt(value) {
+        return Math.round(toNum(value)).toLocaleString('en-US');
+    }
+
+    // تنسيق الدرجات (رقم عشري واحد بدون .0)
+    function fmtScore(value) {
+        return toNum(value).toFixed(1).replace(/\.0$/, '');
+    }
+
+    // كتابة قيمة داخل عنصر إن وُجد
+    function setText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
+
+    // حماية من حقن HTML عند بناء الجداول
+    function esc(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    }
+
+    // ============================================================
     // 1. تحويل الوقت للغة العربية بالكامل
+    // ============================================================
     function formatArabicTimeAgo(dateString) {
         if (!dateString || isNaN(new Date(dateString))) return "غير محدد";
         const now = new Date();
@@ -168,7 +293,7 @@
         const seconds = Math.floor((now - date) / 1000);
 
         if (seconds < 60) return "قبل لحظات";
-        
+
         const minutes = Math.floor(seconds / 60);
         if (minutes < 60) {
             if (minutes === 1) return "قبل دقيقة";
@@ -201,11 +326,13 @@
         });
     });
 
-    // 2. إعداد الرسم البياني وتصفيته تفاعلياً
-    const fullLabels = JSON.parse(document.getElementById('chart-labels').textContent);
-    const fullActual = JSON.parse(document.getElementById('chart-actual').textContent);
-    const fullForecast = JSON.parse(document.getElementById('chart-forecast').textContent);
-    
+    // ============================================================
+    // 2. الرسم البياني الخطي وتصفيته تفاعلياً
+    // ============================================================
+    let fullLabels = JSON.parse(document.getElementById('chart-labels').textContent);
+    let fullActual = JSON.parse(document.getElementById('chart-actual').textContent);
+    let fullForecast = JSON.parse(document.getElementById('chart-forecast').textContent);
+
     const ctx = document.getElementById('mainAnalyticsChart').getContext('2d');
     let analyticsChart = new Chart(ctx, {
         type: 'line',
@@ -242,7 +369,7 @@
     // دالة تصفية بيانات الرسم البياني بحسب الزر المختار
     function filterChart(days) {
         document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
-        
+
         const activeBtn = document.getElementById(`btn-${days}days`);
         if (activeBtn) activeBtn.classList.add('active');
 
@@ -251,5 +378,359 @@
         analyticsChart.data.datasets[1].data = fullForecast.slice(-days);
         analyticsChart.update();
     }
+
+    // ============================================================
+    // 3. رسم الـ Pie (عام عند التحميل، ومخصص عند استخدام السلايسر)
+    // ============================================================
+    const PIE_PALETTE = ['#0d6efd', '#ffc107', '#dc3545', '#198754', '#6f42c1', '#fd7e14', '#20c997', '#0dcaf0', '#6c757d'];
+    let pieChart = null;
+
+    function renderPie(labels, values, subtitle, title) {
+        const vals = values.map(toNum);
+        const total = vals.reduce((a, b) => a + b, 0);
+        const colors = vals.map((_, i) => PIE_PALETTE[i % PIE_PALETTE.length]);
+
+        setText('pieTitle', title || 'توزيع حالة الأسطوانات');
+        setText('pieSubtitle', subtitle ? `— ${subtitle}` : '');
+
+        const canvas = document.getElementById('slicerPieChart');
+        const emptyMsg = document.getElementById('pieEmpty');
+
+        if (total === 0) {
+            canvas.classList.add('d-none');
+            emptyMsg.classList.remove('d-none');
+        } else {
+            canvas.classList.remove('d-none');
+            emptyMsg.classList.add('d-none');
+        }
+
+        if (pieChart) {
+            pieChart.data.labels = labels;
+            pieChart.data.datasets[0].data = vals;
+            pieChart.data.datasets[0].backgroundColor = colors;
+            pieChart.update();
+            return;
+        }
+
+        pieChart = new Chart(canvas.getContext('2d'), {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: vals,
+                    backgroundColor: colors,
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { family: 'Segoe UI' } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function (c) {
+                                const sum = c.dataset.data.reduce((a, b) => a + b, 0) || 1;
+                                const pct = ((c.parsed / sum) * 100).toFixed(1);
+                                return ` ${c.label}: ${c.parsed.toLocaleString('en-US')} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // الـ Pie العام عند تحميل الصفحة (بدون سلايسر)
+    document.addEventListener('DOMContentLoaded', function () {
+        const labels = JSON.parse(document.getElementById('pie-labels').textContent);
+        const values = JSON.parse(document.getElementById('pie-values').textContent);
+        renderPie(labels, values, 'الإجمالي العام');
+    });
+
+    // ============================================================
+    // 4. التبديل بين وضع الرسوم ووضع الجداول (عميل / مورد)
+    // ============================================================
+    function showMode(mode) {
+        const charts = document.getElementById('chartsRow');
+        const partner = document.getElementById('partnerRow');
+
+        const kpis = document.querySelectorAll('.kpi-cylinder');
+
+        if (mode === 'partner') {
+            // عميل / مورد: إخفاء كروت المخزون والإيراد والربح والرسوم، وإظهار الجدول في الأعلى
+            kpis.forEach(el => el.classList.add('d-none'));
+            charts.classList.add('d-none');
+            partner.classList.remove('d-none');
+        } else {
+            kpis.forEach(el => el.classList.remove('d-none'));
+            partner.classList.add('d-none');
+            charts.classList.remove('d-none');
+            analyticsChart.resize();
+            if (pieChart) pieChart.resize();
+        }
+    }
+
+    // ============================================================
+    // 5. جدول العملاء (عند اختيار تصنيف "العميل")
+    // ============================================================
+    function renderCustomers(t) {
+        const s = t.summary || {};
+        const rows = t.rows || [];
+
+        const box = (icon, color, title, body) => `
+            <div class="col-md-4">
+                <div class="border rounded p-3 h-100 bg-light">
+                    <div class="small text-muted mb-1"><i class="bi ${icon} text-${color} me-1"></i>${title}</div>
+                    <div class="fw-bold">${body}</div>
+                </div>
+            </div>`;
+
+        const topCustomer = s.top_customer
+            ? `${esc(s.top_customer.name)} <span class="text-muted fw-normal small">(${fmtInt(s.top_customer.qty)} أسطوانة)</span>`
+            : '—';
+
+        const topProduct = s.top_product
+            ? `${esc(s.top_product.name)} <span class="text-muted fw-normal small">(${fmtInt(s.top_product.qty)} أسطوانة)</span>`
+            : '—';
+
+        let selectedBody = 'لا توجد مشتريات مسجلة لهذا العميل';
+        if (s.selected) {
+            const gap = s.selected.avg_gap_days !== null && s.selected.avg_gap_days !== undefined
+                ? `يشتري كل ${esc(s.selected.avg_gap_days)} يوماً تقريباً`
+                : 'لا تتوفر مشتريات كافية لحساب التكرار';
+            selectedBody = `${esc(s.selected.name)}
+                <div class="fw-normal small text-muted mt-1">
+                    ${gap} — أكثر يوم شراء: ${esc(s.selected.common_weekday)}<br>
+                    أكثر صنف يشتريه: ${esc(s.selected.top_product)}
+                </div>`;
+        }
+
+        let bodyRows = rows.map((r, i) => `
+            <tr class="${r.is_selected ? 'table-primary' : ''}">
+                <td>${i + 1}</td>
+                <td class="fw-bold">${esc(r.name)}
+                    ${r.is_top ? '<span class="badge bg-success ms-1">الأكثر شراءً</span>' : ''}
+                    ${r.is_selected ? '<span class="badge bg-primary ms-1">المحدد</span>' : ''}
+                </td>
+                <td class="text-center">${fmtInt(r.invoices)}</td>
+                <td class="text-center">${fmtInt(r.total_qty)}</td>
+                <td class="text-center">${fmtInt(r.total_value)}</td>
+                <td>${esc(r.top_product)}</td>
+                <td class="text-center">${r.avg_gap_days !== null && r.avg_gap_days !== undefined ? esc(r.avg_gap_days) + ' يوم' : '—'}</td>
+                <td class="text-center">${esc(r.common_weekday)}</td>
+                <td class="text-center">${esc(r.last_purchase)}</td>
+            </tr>`).join('');
+
+        if (!rows.length) {
+            bodyRows = '<tr><td colspan="9" class="text-center text-muted py-3">لا توجد مبيعات مسجلة لعملاء بعد</td></tr>';
+        }
+
+        document.getElementById('partnerContent').innerHTML = `
+            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-people-fill text-primary me-1"></i> العملاء الذين اشتروا منا</h6>
+            <div class="row g-3 mb-3">
+                ${box('bi-trophy-fill', 'warning', 'أكثر عميل شراءً', topCustomer)}
+                ${box('bi-box-seam-fill', 'primary', 'أكثر صنف مبيعاً للعملاء', topProduct)}
+                ${box('bi-person-check-fill', 'success', 'العميل المحدد', selectedBody)}
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>العميل</th>
+                            <th class="text-center">عدد الفواتير</th>
+                            <th class="text-center">إجمالي الكمية</th>
+                            <th class="text-center">إجمالي القيمة (ج.س)</th>
+                            <th>أكثر صنف يشتريه</th>
+                            <th class="text-center">متوسط الفترة بين الشراء</th>
+                            <th class="text-center">أكثر يوم شراء</th>
+                            <th class="text-center">آخر شراء</th>
+                        </tr>
+                    </thead>
+                    <tbody>${bodyRows}</tbody>
+                </table>
+            </div>
+            <p class="text-muted small mt-2 mb-0">
+                الترتيب حسب إجمالي الكمية. تحليل التكرار (متوسط الفترة وأكثر يوم) محسوب من فواتير آخر ${esc(t.analysis_days)} يوماً،
+                وفواتير العميل النقدي (بدون حساب) غير مدرجة.
+            </p>`;
+    }
+
+    // ============================================================
+    // 6. جدول مقارنة الموردين (عند اختيار تصنيف "المورد")
+    // ============================================================
+    function renderSuppliers(t) {
+        const crit = t.criteria || [];
+        const rows = t.rows || [];
+
+        const critHead = crit.map(c => `
+            <th class="text-center">${esc(c.label)}<br><small class="text-muted">(${esc(c.weight)}%)</small></th>`).join('');
+
+        let bodyRows = rows.map(r => `
+            <tr class="${r.is_selected ? 'table-primary' : ''}">
+                <td class="fw-bold">${esc(r.name)}
+                    ${r.is_best ? '<span class="badge bg-success ms-1">الأفضل</span>' : ''}
+                    ${r.is_selected ? '<span class="badge bg-primary ms-1">المحدد</span>' : ''}
+                </td>
+                ${crit.map(c => `<td class="text-center">${fmtScore((r.scores || {})[c.key])}</td>`).join('')}
+                <td class="text-center fw-bold ${r.is_best ? 'text-danger' : ''}">${fmtScore(r.total)}</td>
+                <td class="text-center">${fmtInt(r.shipments)}</td>
+                <td class="text-center">${fmtInt(r.qty)}</td>
+                <td class="text-center">${esc(r.last_supply)}</td>
+            </tr>`).join('');
+
+        if (!rows.length) {
+            bodyRows = `<tr><td colspan="${crit.length + 5}" class="text-center text-muted py-3">لا يوجد موردون مسجلون</td></tr>`;
+        }
+
+        const recommendation = t.best
+            ? `<div class="alert alert-success py-2 small mb-3">
+                   <i class="bi bi-check-circle-fill me-1"></i>
+                   الأنسب حالياً حسب المعايير: <strong>${esc(t.best.name)}</strong> بمجموع ${fmtScore(t.best.total)} من 100
+               </div>`
+            : '';
+
+        document.getElementById('partnerContent').innerHTML = `
+            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-truck text-primary me-1"></i> مقارنة الموردين (نموذج تقييم موزون)</h6>
+            ${recommendation}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle mb-0 small">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>المورد</th>
+                            ${critHead}
+                            <th class="text-center">المجموع<br><small>(100%)</small></th>
+                            <th class="text-center">عدد الشحنات</th>
+                            <th class="text-center">الكمية</th>
+                            <th class="text-center">آخر توريد</th>
+                        </tr>
+                    </thead>
+                    <tbody>${bodyRows}</tbody>
+                </table>
+            </div>
+            <p class="text-muted small mt-2 mb-0">
+                التقييم محسوب من سجلات المشتريات الفعلية خلال آخر ${esc(t.window_days)} يوماً:
+                السعر يُقارن بأقل متوسط سعر للصنف نفسه بين الموردين، وتكرار وحجم التوريد يُقارنان بأعلى مورد،
+                وحداثة التعامل بتاريخ آخر توريد.
+            </p>`;
+    }
+
+    // ============================================================
+    // 7. كود تفاعل السلايسر الديناميكي (AJAX)
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function () {
+        const categorySelect = document.getElementById('slicerCategory');
+        const itemSelect = document.getElementById('slicerItem');
+        const resetBtn = document.getElementById('resetSlicer');
+        const modalEl = document.getElementById('slicerModal');
+
+        // عند تغيير التصنيف الرئيسي (نوع، مورد، عميل)
+        categorySelect.addEventListener('change', function () {
+            const category = this.value;
+            itemSelect.innerHTML = '<option value="">-- جاري التحميل... --</option>';
+            itemSelect.disabled = true;
+
+            if (!category) {
+                itemSelect.innerHTML = '<option value="">-- اختر التصنيف أولاً --</option>';
+                return;
+            }
+
+            fetch(`/api/slicer-options/?category=${encodeURIComponent(category)}`)
+                .then(response => response.json())
+                .then(data => {
+                    itemSelect.innerHTML = '<option value="">-- اختر العنصر المحدد --</option>';
+                    if (data.options && data.options.length > 0) {
+                        data.options.forEach(opt => {
+                            const option = document.createElement('option');
+                            option.value = opt.id;
+                            option.textContent = opt.name;
+                            itemSelect.appendChild(option);
+                        });
+                        itemSelect.disabled = false;
+                    } else {
+                        itemSelect.innerHTML = '<option value="">-- لا توجد خيارات متاحة --</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    itemSelect.innerHTML = '<option value="">-- حدث خطأ في التحميل --</option>';
+                });
+        });
+
+        // عند اختيار العنصر الفرعي لتحديث لوحة التحكم
+        itemSelect.addEventListener('change', function () {
+            const category = categorySelect.value;
+            const itemId = this.value;
+
+            if (!itemId) return;
+
+            const itemName = this.options[this.selectedIndex].textContent;
+            const categoryName = categorySelect.options[categorySelect.selectedIndex].textContent;
+
+            fetch(`/api/dashboard-data/?category=${encodeURIComponent(category)}&id=${encodeURIComponent(itemId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+
+                    // تحديث قيم الـ KPIs (البطاقات العلوية)
+                    setText('readyQtyCard', fmtInt(data.ready_qty));
+                    setText('emptyQtyCard', fmtInt(data.empty_qty));
+                    setText('todayRevenueCard', data.revenue_na ? '—' : fmtInt(data.today_revenue));
+                    setText('netProfitCard', data.revenue_na ? '—' : fmtInt(data.net_profit));
+                    setText('maintenanceQtyCard', fmtInt(data.maintenance_qty));
+
+                    // تحديث كرت السلايسر ليعرض العنصر المختار
+                    setText('slicerCardValue', itemName);
+                    setText('slicerCardSub', categoryName);
+
+                    if (data.view === 'customers') {
+                        renderCustomers(data.table || {});
+                        showMode('partner');
+
+                    } else if (data.view === 'suppliers') {
+                        renderSuppliers(data.table || {});
+                        showMode('partner');
+
+                    } else {
+                        // نوع أسطوانة: الرسم الخطي + الـ Pie المخصص
+                        showMode('charts');
+
+                        if (data.chart_labels && data.chart_actual) {
+                            fullLabels = data.chart_labels;
+                            fullActual = data.chart_actual.map(toNum);
+                            fullForecast = (data.chart_forecast || data.chart_actual.map(v => toNum(v) * 0.9)).map(toNum);
+
+                            analyticsChart.data.labels = fullLabels;
+                            analyticsChart.data.datasets[0].label = data.actual_label || 'المبيعات الفعلية (أسطوانة)';
+                            analyticsChart.data.datasets[0].data = fullActual;
+                            analyticsChart.data.datasets[1].data = fullForecast;
+                            analyticsChart.update();
+                        }
+
+                        const pieLabels = data.donut_labels || ['جاهزة للبيع', 'فارغة', 'قيد الصيانة'];
+                        const pieValues = data.donut_values || [data.ready_qty, data.empty_qty, data.maintenance_qty];
+                        renderPie(pieLabels, pieValues, itemName, data.pie_title);
+                    }
+
+                    // إغلاق نافذة السلايسر ليظهر المحتوى كاملاً
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                    modal.hide();
+                })
+                .catch(error => console.error('Error fetching dashboard data:', error));
+        });
+
+        // زر إعادة التعيين (إرجاع اللوحة لحالتها العامة)
+        resetBtn.addEventListener('click', function () {
+            categorySelect.value = '';
+            itemSelect.innerHTML = '<option value="">-- اختر التصنيف أولاً --</option>';
+            itemSelect.disabled = true;
+            location.reload();
+        });
+    });
 </script>
 {% endblock %}

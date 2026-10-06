@@ -4,6 +4,7 @@
 
 import datetime
 import os
+from collections import Counter
 from decimal import Decimal
 
 from django.contrib import messages
@@ -11,9 +12,9 @@ from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.db import IntegrityError, transaction
-from django.db.models import F, Q, Sum, Count
-from django.db.models.functions import TruncDate
-from django.http import HttpResponse
+from django.db.models import F, Q, Sum, Count, Max, Value
+from django.db.models.functions import TruncDate, Coalesce
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -89,7 +90,6 @@ def _arabic_text(text):
 def _find_arabic_font():
     """
     البحث عن خط يدعم العربية.
-    يمكنك أيضًا وضع Cairo-Regular.ttf داخل static/fonts/.
     """
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -161,8 +161,27 @@ class EmdadLoginView(LoginView):
 
 
 # ============================================================
-# لوحة التحكم الرئيسية
+# دوال مساعدة مشتركة للوحة التحكم والسلايسر
 # ============================================================
+
+_WEEKDAY_NAMES = [
+    'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'
+]
+
+# فترة تحليل تكرار شراء العملاء (بالأيام)
+CUSTOMER_ANALYSIS_DAYS = 365
+
+# فترة تقييم الموردين (بالأيام)
+SUPPLIER_WINDOW_DAYS = 180
+
+# معايير تقييم الموردين وأوزانها (المجموع = 100). يمكن تعديل الأوزان من هنا.
+SUPPLIER_CRITERIA = [
+    ('price', 'السعر', 40),
+    ('frequency', 'تكرار التوريد', 30),
+    ('volume', 'حجم التوريد', 20),
+    ('recency', 'حداثة التعامل', 10),
+]
+
 
 def _exponential_smoothing(values, alpha=0.5):
     """تنبؤ بسيط بالطلب باستخدام المتوسط المتحرك الأسي."""
@@ -181,6 +200,487 @@ def _exponential_smoothing(values, alpha=0.5):
     return [round(v) for v in smoothed]
 
 
+def _to_local_date(value):
+    """تحويل datetime إلى تاريخ بالتوقيت المحلي."""
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.date()
+
+
+def _stock_totals(stock_qs):
+    """إجمالي الكميات (جاهزة / فارغة / صيانة) لمجموعة سجلات مخزون."""
+
+    def total(condition):
+        return int(
+            stock_qs.filter(condition=condition)
+            .aggregate(t=Coalesce(Sum('quantity'), Value(0)))['t']
+        )
+
+    return (
+        total(StockItem.Condition.FULL),
+        total(StockItem.Condition.EMPTY),
+        total(StockItem.Condition.MAINTENANCE),
+    )
+
+
+def _unit_cost_of(product, cache):
+    """تكلفة الوحدة: من الصنف أولاً، ثم آخر عملية شراء، وإلا صفر."""
+
+    if product.pk in cache:
+        return cache[product.pk]
+
+    cost = getattr(product, 'cost_price', None)
+
+    if not cost:
+        last_purchase = (
+            Purchase.objects
+            .filter(product=product)
+            .order_by('-received_at')
+            .first()
+        )
+        cost = last_purchase.unit_cost if last_purchase else Decimal('0')
+
+    cache[product.pk] = Decimal(cost)
+    return cache[product.pk]
+
+
+def _revenue_and_profit(sale_items_qs):
+    """إيراد وصافي ربح مجموعة بنود مبيعات (آمن ضد القيم الفارغة)."""
+
+    revenue = Decimal('0')
+    cost_total = Decimal('0')
+    cache = {}
+
+    for item in sale_items_qs.select_related('product'):
+        qty = Decimal(item.quantity or 0)
+        price = Decimal(item.unit_price or 0)
+        revenue += qty * price
+        cost_total += qty * _unit_cost_of(item.product, cache)
+
+    return revenue, revenue - cost_total
+
+
+def _daily_series(qs, date_field, days=6):
+    """الكميات اليومية الفعلية لآخر عدد من الأيام (تشمل الأيام الصفرية)."""
+
+    today = timezone.localdate()
+    start_day = today - datetime.timedelta(days=days - 1)
+
+    rows = (
+        qs.filter(**{f'{date_field}__date__gte': start_day})
+        .annotate(day=TruncDate(date_field))
+        .values('day')
+        .annotate(qty=Coalesce(Sum('quantity'), Value(0)))
+        .order_by('day')
+    )
+    by_day = {row['day']: row['qty'] for row in rows}
+
+    labels, actual = [], []
+    for i in range(days):
+        d = start_day + datetime.timedelta(days=i)
+        labels.append(_WEEKDAY_NAMES[d.weekday()])
+        actual.append(int(by_day.get(d, 0)))
+
+    return labels, actual
+
+
+def _customers_analytics(selected_id):
+    """
+    تحليل العملاء الذين اشتروا: أكثر عميل، أكثر صنف، وتكرار مواعيد الشراء.
+    (فواتير العميل النقدي بدون حساب غير مدرجة)
+    """
+
+    today = timezone.localdate()
+    since = today - datetime.timedelta(days=CUSTOMER_ANALYSIS_DAYS - 1)
+
+    items = SaleItem.objects.filter(sale__account__isnull=False)
+
+    totals = (
+        items
+        .values('sale__account_id', 'sale__account__name')
+        .annotate(
+            total_qty=Coalesce(Sum('quantity'), Value(0)),
+            total_value=Coalesce(
+                Sum(F('quantity') * F('unit_price')),
+                Value(Decimal('0'))
+            ),
+            invoices=Count('sale', distinct=True),
+            last_purchase=Max('sale__created_at'),
+        )
+        .order_by('-total_qty', 'sale__account__name')
+    )
+
+    # أكثر صنف يشتريه كل عميل
+    favorite = {}
+    fav_rows = (
+        items
+        .values('sale__account_id', 'product__name')
+        .annotate(q=Coalesce(Sum('quantity'), Value(0)))
+        .order_by('sale__account_id', '-q')
+    )
+    for r in fav_rows:
+        favorite.setdefault(r['sale__account_id'], r['product__name'])
+
+    # تواريخ الشراء (آخر سنة) لحساب التكرار
+    dates = {}
+    date_rows = (
+        Sale.objects
+        .filter(account__isnull=False, created_at__date__gte=since)
+        .values_list('account_id', 'created_at')
+    )
+    for acc_id, created in date_rows:
+        dates.setdefault(acc_id, set()).add(_to_local_date(created))
+
+    def frequency_info(acc_id):
+        days = sorted(dates.get(acc_id, []))
+        if not days:
+            return None, '—'
+
+        common = Counter(d.weekday() for d in days).most_common(1)[0][0]
+        weekday = _WEEKDAY_NAMES[common]
+
+        if len(days) < 2:
+            return None, weekday
+
+        gaps = [(b - a).days for a, b in zip(days, days[1:])]
+        return round(sum(gaps) / len(gaps), 1), weekday
+
+    selected_pk = int(selected_id) if str(selected_id).isdigit() else None
+
+    rows = []
+    for r in totals:
+        acc_id = r['sale__account_id']
+        avg_gap, weekday = frequency_info(acc_id)
+        last = r['last_purchase']
+
+        rows.append({
+            'id': acc_id,
+            'name': r['sale__account__name'],
+            'invoices': int(r['invoices']),
+            'total_qty': int(r['total_qty']),
+            'total_value': float(r['total_value']),
+            'top_product': favorite.get(acc_id, '—'),
+            'avg_gap_days': avg_gap,
+            'common_weekday': weekday,
+            'last_purchase': _to_local_date(last).isoformat() if last else '—',
+            'is_selected': acc_id == selected_pk,
+            'is_top': False,
+        })
+
+    if rows:
+        rows[0]['is_top'] = True
+
+    top_product = (
+        items
+        .values('product__name')
+        .annotate(q=Coalesce(Sum('quantity'), Value(0)))
+        .order_by('-q')
+        .first()
+    )
+
+    return {
+        'rows': rows,
+        'analysis_days': CUSTOMER_ANALYSIS_DAYS,
+        'summary': {
+            'top_customer': (
+                {'name': rows[0]['name'], 'qty': rows[0]['total_qty']}
+                if rows else None
+            ),
+            'top_product': (
+                {'name': top_product['product__name'], 'qty': int(top_product['q'])}
+                if top_product else None
+            ),
+            'selected': next((r for r in rows if r['is_selected']), None),
+        },
+    }
+
+
+def _suppliers_comparison(selected_id):
+    """
+    جدول مقارنة الموردين بدرجات موزونة من 100، محسوبة من سجلات المشتريات الفعلية:
+      السعر + تكرار التوريد + حجم التوريد + حداثة التعامل.
+    """
+
+    today = timezone.localdate()
+    since = today - datetime.timedelta(days=SUPPLIER_WINDOW_DAYS - 1)
+    weights = {key: w for key, _label, w in SUPPLIER_CRITERIA}
+
+    suppliers = list(
+        Account.objects
+        .filter(account_type=Account.AccountType.SUPPLIER)
+        .order_by('name')
+    )
+    pks = [s.pk for s in suppliers]
+
+    stats = {
+        pk: {'shipments': 0, 'qty': 0, 'value': Decimal('0'), 'products': {}}
+        for pk in pks
+    }
+
+    window_qs = Purchase.objects.filter(
+        supplier_id__in=pks,
+        received_at__date__gte=since,
+    )
+
+    for p in window_qs:
+        st = stats[p.supplier_id]
+        qty = int(p.quantity or 0)
+        value = Decimal(p.total_cost or 0)
+
+        st['shipments'] += 1
+        st['qty'] += qty
+        st['value'] += value
+
+        entry = st['products'].setdefault(p.product_id, [0, Decimal('0')])
+        entry[0] += qty
+        entry[1] += value
+
+    # آخر توريد لكل مورد (على مدى كل السجلات)
+    last_rows = (
+        Purchase.objects
+        .filter(supplier_id__in=pks)
+        .values('supplier_id')
+        .annotate(last=Max('received_at'))
+    )
+    last_supply = {
+        r['supplier_id']: _to_local_date(r['last'])
+        for r in last_rows if r['last']
+    }
+
+    # أقل متوسط سعر لكل صنف بين الموردين
+    min_price = {}
+    for st in stats.values():
+        for pid, (qty, value) in st['products'].items():
+            if qty > 0 and value > 0:
+                avg = value / qty
+                if pid not in min_price or avg < min_price[pid]:
+                    min_price[pid] = avg
+
+    def price_ratio(st):
+        num = Decimal('0')
+        den = 0
+        for pid, (qty, value) in st['products'].items():
+            if qty > 0 and value > 0 and pid in min_price:
+                avg = value / qty
+                num += Decimal(qty) * (min_price[pid] / avg)
+                den += qty
+        return float(num / den) if den else 0.0
+
+    def recency_ratio(pk):
+        last = last_supply.get(pk)
+        if not last:
+            return 0.0
+        age = (today - last).days
+        if age <= 30:
+            return 1.0
+        if age >= SUPPLIER_WINDOW_DAYS:
+            return 0.0
+        return 1.0 - (age - 30) / (SUPPLIER_WINDOW_DAYS - 30)
+
+    max_ship = max((st['shipments'] for st in stats.values()), default=0)
+    max_qty = max((st['qty'] for st in stats.values()), default=0)
+
+    selected_pk = int(selected_id) if str(selected_id).isdigit() else None
+
+    rows = []
+    for s in suppliers:
+        st = stats[s.pk]
+
+        scores = {
+            'price': weights['price'] * price_ratio(st),
+            'frequency': weights['frequency'] * (
+                st['shipments'] / max_ship if max_ship else 0
+            ),
+            'volume': weights['volume'] * (
+                st['qty'] / max_qty if max_qty else 0
+            ),
+            'recency': weights['recency'] * recency_ratio(s.pk),
+        }
+        total = sum(scores.values())
+        last = last_supply.get(s.pk)
+
+        rows.append({
+            'id': s.pk,
+            'name': s.name,
+            'scores': {k: round(v, 1) for k, v in scores.items()},
+            'total': round(total, 1),
+            'shipments': st['shipments'],
+            'qty': st['qty'],
+            'last_supply': last.isoformat() if last else '—',
+            'is_selected': s.pk == selected_pk,
+            'is_best': False,
+        })
+
+    rows.sort(key=lambda r: (-r['total'], r['name']))
+
+    best = None
+    if rows and rows[0]['total'] > 0:
+        rows[0]['is_best'] = True
+        best = {'name': rows[0]['name'], 'total': rows[0]['total']}
+
+    return {
+        'criteria': [
+            {'key': key, 'label': label, 'weight': w}
+            for key, label, w in SUPPLIER_CRITERIA
+        ],
+        'rows': rows,
+        'best': best,
+        'window_days': SUPPLIER_WINDOW_DAYS,
+    }
+
+
+# ============================================================
+# دوال الـ API الخاصة بالسلايسر الديناميكي (Slicer APIs)
+# ============================================================
+
+@login_required
+def get_slicer_options(request):
+    """إرجاع خيارات القائمة المنسدلة بناءً على التصنيف المختار (نوع، مورد، عميل)"""
+    category = request.GET.get('category')
+    options = []
+
+    if category == 'type':
+        options = [{'id': p.id, 'name': p.name} for p in Product.objects.filter(is_active=True)]
+    elif category == 'supplier':
+        options = [{'id': a.id, 'name': a.name} for a in Account.objects.filter(account_type=Account.AccountType.SUPPLIER)]
+    elif category == 'customer':
+        options = [{'id': c.id, 'name': c.name} for c in Account.objects.filter(account_type__in=[Account.AccountType.AGENT, Account.AccountType.CUSTOMER])]
+
+    return JsonResponse({'options': options})
+
+
+@login_required
+def get_dashboard_data(request):
+    """
+    بيانات لوحة التحكم عند استخدام السلايسر (كلها من قاعدة البيانات الفعلية):
+      - type     : صنف/نوع أسطوانة  -> رسوم بيانية (خطي + Pie)
+      - customer : عميل             -> جدول تحليل العملاء
+      - supplier : مورد             -> جدول مقارنة الموردين
+    """
+
+    category = request.GET.get('category')
+    item_id = request.GET.get('id')
+
+    if not item_id or not str(item_id).isdigit():
+        return JsonResponse({'error': 'لم يتم تحديد عنصر صالح.'}, status=400)
+
+    today = timezone.localdate()
+
+    purchase_cost = Decimal('0')
+    revenue_na = False
+
+    # ---------------------------------------------------------
+    # نوع الأسطوانة / الصنف
+    # ---------------------------------------------------------
+    if category == 'type':
+        product = Product.objects.filter(pk=item_id).first()
+        if not product:
+            return JsonResponse({'error': 'الصنف غير موجود.'}, status=404)
+
+        full_count, empty_count, maintenance_count = _stock_totals(
+            StockItem.objects.filter(product=product)
+        )
+
+        sales_qs = SaleItem.objects.filter(product=product)
+
+        today_revenue, net_profit = _revenue_and_profit(
+            sales_qs.filter(sale__created_at__date=today)
+        )
+
+        purchase_cost = _unit_cost_of(product, {}) * Decimal(full_count + empty_count)
+
+        labels, actual = _daily_series(sales_qs, 'sale__created_at')
+
+        extra = {
+            'view': 'charts',
+            'chart_labels': labels,
+            'chart_actual': actual,
+            'chart_forecast': _exponential_smoothing(actual, alpha=0.5),
+            'actual_label': 'المبيعات الفعلية (أسطوانة)',
+            'pie_title': 'توزيع حالة الأسطوانات',
+            'donut_labels': ['جاهزة للبيع (مليئة)', 'فارغة (تحت التعبئة)', 'قيد الصيانة'],
+            'donut_values': [full_count, empty_count, maintenance_count],
+        }
+
+    # ---------------------------------------------------------
+    # العميل
+    # ---------------------------------------------------------
+    elif category == 'customer':
+        account = Account.objects.filter(pk=item_id).first()
+        if not account:
+            return JsonResponse({'error': 'العميل غير موجود.'}, status=404)
+
+        # المخزون غير مرتبط بعميل، فيعرض الإجمالي العام
+        full_count, empty_count, maintenance_count = _stock_totals(
+            StockItem.objects.all()
+        )
+
+        today_revenue, net_profit = _revenue_and_profit(
+            SaleItem.objects.filter(
+                sale__account=account,
+                sale__created_at__date=today,
+            )
+        )
+
+        extra = {
+            'view': 'customers',
+            'table': _customers_analytics(item_id),
+        }
+
+    # ---------------------------------------------------------
+    # المورد
+    # ---------------------------------------------------------
+    elif category == 'supplier':
+        account = Account.objects.filter(pk=item_id).first()
+        if not account:
+            return JsonResponse({'error': 'المورد غير موجود.'}, status=404)
+
+        full_count, empty_count, maintenance_count = _stock_totals(
+            StockItem.objects.all()
+        )
+
+        # الإيراد والربح لا ينطبقان على المورد
+        revenue_na = True
+        today_revenue = Decimal('0')
+        net_profit = Decimal('0')
+
+        purchase_cost = sum(
+            (
+                Decimal(p.total_cost or 0)
+                for p in Purchase.objects.filter(
+                    supplier=account,
+                    received_at__date=today,
+                )
+            ),
+            Decimal('0'),
+        )
+
+        extra = {
+            'view': 'suppliers',
+            'table': _suppliers_comparison(item_id),
+        }
+
+    else:
+        return JsonResponse({'error': 'تصنيف غير معروف.'}, status=400)
+
+    data = {
+        'ready_qty': full_count,
+        'empty_qty': empty_count,
+        'maintenance_qty': maintenance_count,
+        'today_revenue': float(today_revenue),
+        'net_profit': float(net_profit),
+        'purchase_cost': float(purchase_cost),
+        'revenue_na': revenue_na,
+    }
+    data.update(extra)
+
+    return JsonResponse(data)
+
+
+# ============================================================
+# لوحة التحكم الرئيسية
+# ============================================================
+
 @login_required
 def dashboard(request):
 
@@ -188,21 +688,9 @@ def dashboard(request):
         condition=StockItem.Condition.FULL
     )
 
-    ready_qty = full_qs.aggregate(
-        t=Sum('quantity')
-    )['t'] or 0
-
-    empty_qty = StockItem.objects.filter(
-        condition=StockItem.Condition.EMPTY
-    ).aggregate(
-        t=Sum('quantity')
-    )['t'] or 0
-
-    maintenance_qty = StockItem.objects.filter(
-        condition=StockItem.Condition.MAINTENANCE
-    ).aggregate(
-        t=Sum('quantity')
-    )['t'] or 0
+    ready_qty, empty_qty, maintenance_qty = _stock_totals(
+        StockItem.objects.all()
+    )
 
     # ============================================================
     # تجميع الكميات حسب نوع/اسم المنتج لكل حالة أسطوانات
@@ -231,77 +719,16 @@ def dashboard(request):
 
     today = timezone.localdate()
 
-    # 1. إيرادات اليوم
-    today_revenue = SaleItem.objects.filter(
-        sale__created_at__date=today
-    ).aggregate(
-        t=Sum(F('quantity') * F('unit_price'))
-    )['t'] or Decimal('0')
-
-    # 2. تكلفة مبيعات اليوم (لحساب صافي الربح)
-    today_items = SaleItem.objects.filter(sale__created_at__date=today)
-    today_cost = Decimal('0')
-
-    for item in today_items:
-        cost = getattr(item.product, 'cost_price', None)
-        if cost is None:
-
-            last_purchase = Purchase.objects.filter(
-                product=item.product
-            ).order_by('-received_at').first()
-
-            cost = last_purchase.unit_cost if last_purchase else Decimal('0')
-
-        today_cost += item.quantity * cost
-
-    # 3. صافي ربح اليوم
-    net_profit = today_revenue - today_cost
-
-    start_day = today - datetime.timedelta(days=5)
-
-    daily = (
-        SaleItem.objects
-        .filter(
-            sale__created_at__date__gte=start_day
-        )
-        .annotate(
-            day=TruncDate('sale__created_at')
-        )
-        .values('day')
-        .annotate(
-            qty=Sum('quantity')
-        )
-        .order_by('day')
+    # إيرادات وصافي ربح اليوم (نفس طريقة حساب السلايسر تماماً)
+    today_revenue, net_profit = _revenue_and_profit(
+        SaleItem.objects.filter(sale__created_at__date=today)
     )
 
-    by_day = {
-        row['day']: row['qty']
-        for row in daily
-    }
-
-    labels = []
-    actual = []
-
-    weekday_names = [
-        'الإثنين',
-        'الثلاثاء',
-        'الأربعاء',
-        'الخميس',
-        'الجمعة',
-        'السبت',
-        'الأحد'
-    ]
-
-    for i in range(6):
-        d = start_day + datetime.timedelta(days=i)
-
-        labels.append(
-            weekday_names[d.weekday()]
-        )
-
-        actual.append(
-            by_day.get(d, 0)
-        )
+    # مبيعات آخر 6 أيام والتنبؤ بالطلب
+    labels, actual = _daily_series(
+        SaleItem.objects.all(),
+        'sale__created_at'
+    )
 
     forecast = _exponential_smoothing(
         actual,
@@ -330,6 +757,12 @@ def dashboard(request):
         'chart_labels': labels,
         'chart_actual': actual,
         'chart_forecast': forecast,
+        'pie_labels': [
+            'جاهزة للبيع (مليئة)',
+            'فارغة (تحت التعبئة)',
+            'قيد الصيانة',
+        ],
+        'pie_values': [ready_qty, empty_qty, maintenance_qty],
         'recent_movements': recent_movements,
         'low_stock_items': (
             full_qs
@@ -741,7 +1174,8 @@ def sales_page(request):
                             defaults={'quantity': 0},
                         )
 
-                        empty_stock.quantity = F('quantity') + qty
+                        # تصحيح: تُضاف الكمية المخصومة فعلياً من هذا المستودع فقط
+                        empty_stock.quantity = F('quantity') + deduct
 
                         empty_stock.save(
                             update_fields=[
@@ -862,18 +1296,16 @@ def customers_page(request):
         Account.objects
         .filter(balance__gt=0)
         .aggregate(
-            t=Sum('balance')
+            t=Coalesce(Sum('balance'), Value(Decimal('0')))
         )['t']
-        or Decimal('0')
     )
 
     supplier_payable = (
         Account.objects
         .filter(balance__lt=0)
         .aggregate(
-            t=Sum('balance')
+            t=Coalesce(Sum('balance'), Value(Decimal('0')))
         )['t']
-        or Decimal('0')
     )
 
     active_contracts = (
@@ -1297,9 +1729,7 @@ def export_sales_pdf(request):
         fontSize=18,
         leading=24,
         alignment=TA_CENTER,
-        textColor=colors.HexColor(
-            '#17365D'
-        ),
+        textColor=colors.HexColor('#17365D'),
         spaceAfter=8,
     )
 
@@ -1309,9 +1739,7 @@ def export_sales_pdf(request):
         fontSize=10,
         leading=16,
         alignment=TA_CENTER,
-        textColor=colors.HexColor(
-            '#666666'
-        ),
+        textColor=colors.HexColor('#666666'),
         spaceAfter=12,
     )
 
@@ -1321,9 +1749,7 @@ def export_sales_pdf(request):
         fontSize=12,
         leading=18,
         alignment=TA_RIGHT,
-        textColor=colors.HexColor(
-            '#17365D'
-        ),
+        textColor=colors.HexColor('#17365D'),
         spaceBefore=8,
         spaceAfter=6,
     )
@@ -1348,18 +1774,14 @@ def export_sales_pdf(request):
 
     story.append(
         Paragraph(
-            _arabic_text(
-                'منصة إمداد الرقمية'
-            ),
+            _arabic_text('منصة إمداد الرقمية'),
             title_style
         )
     )
 
     story.append(
         Paragraph(
-            _arabic_text(
-                'تقرير المبيعات والمشتريات والتحليلات'
-            ),
+            _arabic_text('تقرير المبيعات والمشتريات والتحليلات'),
             subtitle_style
         )
     )
@@ -1375,54 +1797,31 @@ def export_sales_pdf(request):
     )
 
     story.append(
-        Spacer(
-            1,
-            5
-        )
+        Spacer(1, 5)
     )
 
     summary_data = [
         [
-            Paragraph(
-                _arabic_text('إجمالي المبيعات'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('إجمالي المشتريات'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('عدد الفواتير'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('عدد الشحنات'),
-                center_style
-            ),
+            Paragraph(_arabic_text('إجمالي المبيعات'), center_style),
+            Paragraph(_arabic_text('إجمالي المشتريات'), center_style),
+            Paragraph(_arabic_text('عدد الفواتير'), center_style),
+            Paragraph(_arabic_text('عدد الشحنات'), center_style),
         ],
         [
             Paragraph(
-                _arabic_text(
-                    f'{data["total_sales"]:,.0f} ج.س'
-                ),
+                _arabic_text(f'{data["total_sales"]:,.0f} ج.س'),
                 center_style
             ),
             Paragraph(
-                _arabic_text(
-                    f'{data["total_purchases"]:,.0f} ج.س'
-                ),
+                _arabic_text(f'{data["total_purchases"]:,.0f} ج.س'),
                 center_style
             ),
             Paragraph(
-                _arabic_text(
-                    str(data['sales_count'])
-                ),
+                _arabic_text(str(data['sales_count'])),
                 center_style
             ),
             Paragraph(
-                _arabic_text(
-                    str(data['purchase_count'])
-                ),
+                _arabic_text(str(data['purchase_count'])),
                 center_style
             ),
         ],
@@ -1441,110 +1840,51 @@ def export_sales_pdf(request):
 
     summary_table.setStyle(
         TableStyle([
-            (
-                'BACKGROUND',
-                (0, 0),
-                (-1, 0),
-                colors.HexColor('#EAF2F8')
-            ),
-            (
-                'BACKGROUND',
-                (0, 1),
-                (-1, 1),
-                colors.white
-            ),
-            (
-                'GRID',
-                (0, 0),
-                (-1, -1),
-                0.5,
-                colors.HexColor('#D5D8DC')
-            ),
-            (
-                'VALIGN',
-                (0, 0),
-                (-1, -1),
-                'MIDDLE'
-            ),
-            (
-                'TOPPADDING',
-                (0, 0),
-                (-1, -1),
-                7
-            ),
-            (
-                'BOTTOMPADDING',
-                (0, 0),
-                (-1, -1),
-                7
-            ),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EAF2F8')),
+            ('BACKGROUND', (0, 1), (-1, 1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D5D8DC')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
         ])
     )
 
-    story.append(
-        summary_table
-    )
+    story.append(summary_table)
 
     story.append(
-        Spacer(
-            1,
-            8
-        )
+        Spacer(1, 8)
     )
 
     story.append(
         Paragraph(
-            _arabic_text(
-                'تحليل المبيعات حسب طريقة الدفع'
-            ),
+            _arabic_text('تحليل المبيعات حسب طريقة الدفع'),
             heading_style
         )
     )
 
     payment_data = [
         [
+            Paragraph(_arabic_text('طريقة الدفع'), center_style),
+            Paragraph(_arabic_text('القيمة'), center_style),
+        ],
+        [
+            Paragraph(_arabic_text('نقدي / كاش'), center_style),
             Paragraph(
-                _arabic_text('طريقة الدفع'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('القيمة'),
+                _arabic_text(f'{data["cash_sales"]:,.0f} ج.س'),
                 center_style
             ),
         ],
         [
+            Paragraph(_arabic_text('تطبيق بنكي'), center_style),
             Paragraph(
-                _arabic_text('نقدي / كاش'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    f'{data["cash_sales"]:,.0f} ج.س'
-                ),
+                _arabic_text(f'{data["bank_sales"]:,.0f} ج.س'),
                 center_style
             ),
         ],
         [
+            Paragraph(_arabic_text('آجل / ديون'), center_style),
             Paragraph(
-                _arabic_text('تطبيق بنكي'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    f'{data["bank_sales"]:,.0f} ج.س'
-                ),
-                center_style
-            ),
-        ],
-        [
-            Paragraph(
-                _arabic_text('آجل / ديون'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    f'{data["credit_sales"]:,.0f} ج.س'
-                ),
+                _arabic_text(f'{data["credit_sales"]:,.0f} ج.س'),
                 center_style
             ),
         ],
@@ -1560,105 +1900,41 @@ def export_sales_pdf(request):
 
     payment_table.setStyle(
         TableStyle([
-            (
-                'BACKGROUND',
-                (0, 0),
-                (-1, 0),
-                colors.HexColor('#D5F5E3')
-            ),
-            (
-                'GRID',
-                (0, 0),
-                (-1, -1),
-                0.5,
-                colors.HexColor('#D5D8DC')
-            ),
-            (
-                'VALIGN',
-                (0, 0),
-                (-1, -1),
-                'MIDDLE'
-            ),
-            (
-                'ALIGN',
-                (0, 0),
-                (-1, -1),
-                'CENTER'
-            ),
-            (
-                'TOPPADDING',
-                (0, 0),
-                (-1, -1),
-                6
-            ),
-            (
-                'BOTTOMPADDING',
-                (0, 0),
-                (-1, -1),
-                6
-            ),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#D5F5E3')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D5D8DC')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ])
     )
 
-    story.append(
-        payment_table
-    )
+    story.append(payment_table)
 
     story.append(
         Paragraph(
-            _arabic_text(
-                'أكثر الأصناف مبيعًا'
-            ),
+            _arabic_text('أكثر الأصناف مبيعًا'),
             heading_style
         )
     )
 
     top_products_data = [
         [
-            Paragraph(
-                _arabic_text('الصنف'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الرمز'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الكمية'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('قيمة المبيعات'),
-                center_style
-            ),
+            Paragraph(_arabic_text('الصنف'), center_style),
+            Paragraph(_arabic_text('الرمز'), center_style),
+            Paragraph(_arabic_text('الكمية'), center_style),
+            Paragraph(_arabic_text('قيمة المبيعات'), center_style),
         ]
     ]
 
     for item in data['top_products']:
 
         top_products_data.append([
+            Paragraph(_arabic_text(item['product__name']), center_style),
+            Paragraph(_arabic_text(item['product__code']), center_style),
+            Paragraph(_arabic_text(str(item['total_qty'])), center_style),
             Paragraph(
-                _arabic_text(
-                    item['product__name']
-                ),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    item['product__code']
-                ),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    str(item['total_qty'])
-                ),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    f'{item["total_value"]:,.0f} ج.س'
-                ),
+                _arabic_text(f'{item["total_value"]:,.0f} ج.س'),
                 center_style
             ),
         ])
@@ -1667,9 +1943,7 @@ def export_sales_pdf(request):
 
         top_products_data.append([
             Paragraph(
-                _arabic_text(
-                    'لا توجد مبيعات ضمن الفترة المحددة'
-                ),
+                _arabic_text('لا توجد مبيعات ضمن الفترة المحددة'),
                 center_style
             ),
             '',
@@ -1690,67 +1964,28 @@ def export_sales_pdf(request):
 
     top_table.setStyle(
         TableStyle([
-            (
-                'BACKGROUND',
-                (0, 0),
-                (-1, 0),
-                colors.HexColor('#EAF2F8')
-            ),
-            (
-                'GRID',
-                (0, 0),
-                (-1, -1),
-                0.5,
-                colors.HexColor('#D5D8DC')
-            ),
-            (
-                'VALIGN',
-                (0, 0),
-                (-1, -1),
-                'MIDDLE'
-            ),
-            (
-                'TOPPADDING',
-                (0, 0),
-                (-1, -1),
-                5
-            ),
-            (
-                'BOTTOMPADDING',
-                (0, 0),
-                (-1, -1),
-                5
-            ),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EAF2F8')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D5D8DC')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ])
     )
 
-    story.append(
-        top_table
-    )
+    story.append(top_table)
 
     story.append(
         Paragraph(
-            _arabic_text(
-                'المبيعات اليومية'
-            ),
+            _arabic_text('المبيعات اليومية'),
             heading_style
         )
     )
 
     daily_data = [
         [
-            Paragraph(
-                _arabic_text('التاريخ'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الكمية'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('قيمة المبيعات'),
-                center_style
-            ),
+            Paragraph(_arabic_text('التاريخ'), center_style),
+            Paragraph(_arabic_text('الكمية'), center_style),
+            Paragraph(_arabic_text('قيمة المبيعات'), center_style),
         ]
     ]
 
@@ -1758,23 +1993,12 @@ def export_sales_pdf(request):
 
         daily_data.append([
             Paragraph(
-                _arabic_text(
-                    row['day'].strftime(
-                        '%Y-%m-%d'
-                    )
-                ),
+                _arabic_text(row['day'].strftime('%Y-%m-%d')),
                 center_style
             ),
+            Paragraph(_arabic_text(str(row['quantity'])), center_style),
             Paragraph(
-                _arabic_text(
-                    str(row['quantity'])
-                ),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    f'{row["total"]:,.0f} ج.س'
-                ),
+                _arabic_text(f'{row["total"]:,.0f} ج.س'),
                 center_style
             ),
         ])
@@ -1783,9 +2007,7 @@ def export_sales_pdf(request):
 
         daily_data.append([
             Paragraph(
-                _arabic_text(
-                    'لا توجد مبيعات ضمن الفترة'
-                ),
+                _arabic_text('لا توجد مبيعات ضمن الفترة'),
                 center_style
             ),
             '',
@@ -1804,83 +2026,33 @@ def export_sales_pdf(request):
 
     daily_table.setStyle(
         TableStyle([
-            (
-                'BACKGROUND',
-                (0, 0),
-                (-1, 0),
-                colors.HexColor('#D5F5E3')
-            ),
-            (
-                'GRID',
-                (0, 0),
-                (-1, -1),
-                0.5,
-                colors.HexColor('#D5D8DC')
-            ),
-            (
-                'VALIGN',
-                (0, 0),
-                (-1, -1),
-                'MIDDLE'
-            ),
-            (
-                'TOPPADDING',
-                (0, 0),
-                (-1, -1),
-                5
-            ),
-            (
-                'BOTTOMPADDING',
-                (0, 0),
-                (-1, -1),
-                5
-            ),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#D5F5E3')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D5D8DC')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ])
     )
 
-    story.append(
-        daily_table
-    )
+    story.append(daily_table)
 
-    story.append(
-        PageBreak()
-    )
+    story.append(PageBreak())
 
     story.append(
         Paragraph(
-            _arabic_text(
-                'تفاصيل فواتير المبيعات'
-            ),
+            _arabic_text('تفاصيل فواتير المبيعات'),
             heading_style
         )
     )
 
     sales_data = [
         [
-            Paragraph(
-                _arabic_text('الفاتورة'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('التاريخ'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('العميل'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الصنف'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الكمية'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الإجمالي'),
-                center_style
-            ),
+            Paragraph(_arabic_text('الفاتورة'), center_style),
+            Paragraph(_arabic_text('التاريخ'), center_style),
+            Paragraph(_arabic_text('العميل'), center_style),
+            Paragraph(_arabic_text('الصنف'), center_style),
+            Paragraph(_arabic_text('الكمية'), center_style),
+            Paragraph(_arabic_text('الإجمالي'), center_style),
         ]
     ]
 
@@ -1889,18 +2061,9 @@ def export_sales_pdf(request):
         for item in sale.items.all():
 
             sales_data.append([
+                Paragraph(_arabic_text(sale.invoice_no), center_style),
                 Paragraph(
-                    _arabic_text(
-                        sale.invoice_no
-                    ),
-                    center_style
-                ),
-                Paragraph(
-                    _arabic_text(
-                        sale.created_at.strftime(
-                            '%Y-%m-%d'
-                        )
-                    ),
+                    _arabic_text(sale.created_at.strftime('%Y-%m-%d')),
                     center_style
                 ),
                 Paragraph(
@@ -1911,22 +2074,10 @@ def export_sales_pdf(request):
                     ),
                     center_style
                 ),
+                Paragraph(_arabic_text(item.product.name), center_style),
+                Paragraph(_arabic_text(str(item.quantity)), center_style),
                 Paragraph(
-                    _arabic_text(
-                        item.product.name
-                    ),
-                    center_style
-                ),
-                Paragraph(
-                    _arabic_text(
-                        str(item.quantity)
-                    ),
-                    center_style
-                ),
-                Paragraph(
-                    _arabic_text(
-                        f'{item.subtotal:,.0f}'
-                    ),
+                    _arabic_text(f'{item.subtotal:,.0f}'),
                     center_style
                 ),
             ])
@@ -1935,9 +2086,7 @@ def export_sales_pdf(request):
 
         sales_data.append([
             Paragraph(
-                _arabic_text(
-                    'لا توجد فواتير ضمن الفترة المحددة'
-                ),
+                _arabic_text('لا توجد فواتير ضمن الفترة المحددة'),
                 center_style
             ),
             '',
@@ -1962,85 +2111,32 @@ def export_sales_pdf(request):
 
     sales_table.setStyle(
         TableStyle([
-            (
-                'BACKGROUND',
-                (0, 0),
-                (-1, 0),
-                colors.HexColor('#D5F5E3')
-            ),
-            (
-                'GRID',
-                (0, 0),
-                (-1, -1),
-                0.4,
-                colors.HexColor('#D5D8DC')
-            ),
-            (
-                'VALIGN',
-                (0, 0),
-                (-1, -1),
-                'MIDDLE'
-            ),
-            (
-                'FONTSIZE',
-                (0, 0),
-                (-1, -1),
-                7
-            ),
-            (
-                'TOPPADDING',
-                (0, 0),
-                (-1, -1),
-                4
-            ),
-            (
-                'BOTTOMPADDING',
-                (0, 0),
-                (-1, -1),
-                4
-            ),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#D5F5E3')),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#D5D8DC')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ])
     )
 
-    story.append(
-        sales_table
-    )
+    story.append(sales_table)
 
     story.append(
         Paragraph(
-            _arabic_text(
-                'تفاصيل المشتريات والشحنات الواردة'
-            ),
+            _arabic_text('تفاصيل المشتريات والشحنات الواردة'),
             heading_style
         )
     )
 
     purchase_data = [
         [
-            Paragraph(
-                _arabic_text('التاريخ'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الصنف'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('المورد'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الكمية'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('تكلفة الوحدة'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الإجمالي'),
-                center_style
-            ),
+            Paragraph(_arabic_text('التاريخ'), center_style),
+            Paragraph(_arabic_text('الصنف'), center_style),
+            Paragraph(_arabic_text('المورد'), center_style),
+            Paragraph(_arabic_text('الكمية'), center_style),
+            Paragraph(_arabic_text('تكلفة الوحدة'), center_style),
+            Paragraph(_arabic_text('الإجمالي'), center_style),
         ]
     ]
 
@@ -2048,19 +2144,10 @@ def export_sales_pdf(request):
 
         purchase_data.append([
             Paragraph(
-                _arabic_text(
-                    purchase.received_at.strftime(
-                        '%Y-%m-%d'
-                    )
-                ),
+                _arabic_text(purchase.received_at.strftime('%Y-%m-%d')),
                 center_style
             ),
-            Paragraph(
-                _arabic_text(
-                    purchase.product.name
-                ),
-                center_style
-            ),
+            Paragraph(_arabic_text(purchase.product.name), center_style),
             Paragraph(
                 _arabic_text(
                     purchase.supplier.name
@@ -2069,22 +2156,13 @@ def export_sales_pdf(request):
                 ),
                 center_style
             ),
+            Paragraph(_arabic_text(str(purchase.quantity)), center_style),
             Paragraph(
-                _arabic_text(
-                    str(purchase.quantity)
-                ),
+                _arabic_text(f'{purchase.unit_cost:,.0f}'),
                 center_style
             ),
             Paragraph(
-                _arabic_text(
-                    f'{purchase.unit_cost:,.0f}'
-                ),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    f'{purchase.total_cost:,.0f}'
-                ),
+                _arabic_text(f'{purchase.total_cost:,.0f}'),
                 center_style
             ),
         ])
@@ -2093,9 +2171,7 @@ def export_sales_pdf(request):
 
         purchase_data.append([
             Paragraph(
-                _arabic_text(
-                    'لا توجد مشتريات ضمن الفترة المحددة'
-                ),
+                _arabic_text('لا توجد مشتريات ضمن الفترة المحددة'),
                 center_style
             ),
             '',
@@ -2120,81 +2196,32 @@ def export_sales_pdf(request):
 
     purchase_table.setStyle(
         TableStyle([
-            (
-                'BACKGROUND',
-                (0, 0),
-                (-1, 0),
-                colors.HexColor('#EAF2F8')
-            ),
-            (
-                'GRID',
-                (0, 0),
-                (-1, -1),
-                0.4,
-                colors.HexColor('#D5D8DC')
-            ),
-            (
-                'VALIGN',
-                (0, 0),
-                (-1, -1),
-                'MIDDLE'
-            ),
-            (
-                'FONTSIZE',
-                (0, 0),
-                (-1, -1),
-                7
-            ),
-            (
-                'TOPPADDING',
-                (0, 0),
-                (-1, -1),
-                4
-            ),
-            (
-                'BOTTOMPADDING',
-                (0, 0),
-                (-1, -1),
-                4
-            ),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EAF2F8')),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#D5D8DC')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ])
     )
 
-    story.append(
-        purchase_table
-    )
+    story.append(purchase_table)
 
-    story.append(
-        PageBreak()
-    )
+    story.append(PageBreak())
 
     story.append(
         Paragraph(
-            _arabic_text(
-                'ملخص المخزون الحالي'
-            ),
+            _arabic_text('ملخص المخزون الحالي'),
             heading_style
         )
     )
 
     stock_data = [
         [
-            Paragraph(
-                _arabic_text('الصنف'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الرمز'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الحالة'),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text('الكمية'),
-                center_style
-            ),
+            Paragraph(_arabic_text('الصنف'), center_style),
+            Paragraph(_arabic_text('الرمز'), center_style),
+            Paragraph(_arabic_text('الحالة'), center_style),
+            Paragraph(_arabic_text('الكمية'), center_style),
         ]
     ]
 
@@ -2210,39 +2237,17 @@ def export_sales_pdf(request):
         )
 
         stock_data.append([
-            Paragraph(
-                _arabic_text(
-                    item['product__name']
-                ),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    item['product__code']
-                ),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    condition_label
-                ),
-                center_style
-            ),
-            Paragraph(
-                _arabic_text(
-                    str(item['quantity'])
-                ),
-                center_style
-            ),
+            Paragraph(_arabic_text(item['product__name']), center_style),
+            Paragraph(_arabic_text(item['product__code']), center_style),
+            Paragraph(_arabic_text(condition_label), center_style),
+            Paragraph(_arabic_text(str(item['quantity'])), center_style),
         ])
 
     if len(stock_data) == 1:
 
         stock_data.append([
             Paragraph(
-                _arabic_text(
-                    'لا توجد بيانات مخزون'
-                ),
+                _arabic_text('لا توجد بيانات مخزون'),
                 center_style
             ),
             '',
@@ -2263,49 +2268,18 @@ def export_sales_pdf(request):
 
     stock_table.setStyle(
         TableStyle([
-            (
-                'BACKGROUND',
-                (0, 0),
-                (-1, 0),
-                colors.HexColor('#FDEBD0')
-            ),
-            (
-                'GRID',
-                (0, 0),
-                (-1, -1),
-                0.4,
-                colors.HexColor('#D5D8DC')
-            ),
-            (
-                'VALIGN',
-                (0, 0),
-                (-1, -1),
-                'MIDDLE'
-            ),
-            (
-                'TOPPADDING',
-                (0, 0),
-                (-1, -1),
-                5
-            ),
-            (
-                'BOTTOMPADDING',
-                (0, 0),
-                (-1, -1),
-                5
-            ),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FDEBD0')),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#D5D8DC')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ])
     )
 
-    story.append(
-        stock_table
-    )
+    story.append(stock_table)
 
     story.append(
-        Spacer(
-            1,
-            12
-        )
+        Spacer(1, 12)
     )
 
     story.append(

@@ -18,4 +18,6 @@ urlpatterns = [
 
     path('reports/', views.reports_page, name='reports_page'),
     path('reports/export/', views.export_sales_pdf, name='export_sales_pdf'),
+    path('api/slicer-options/', views.get_slicer_options, name='get_slicer_options'),
+    path('api/dashboard-data/', views.get_dashboard_data, name= 'get_dashboard_data'),
 ]
